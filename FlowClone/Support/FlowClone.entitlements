@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Hardened-runtime entitlements for notarized distribution. Onyx Scribe is a
+     menu-bar dictation tool: it needs the microphone, and it loads on-device ML
+     frameworks (FluidAudio / WhisperKit) that ship their own binaries, so library
+     validation is relaxed. Accessibility and synthetic keystrokes are TCC-gated at
+     runtime, not entitlement-gated, so they need no key here. NOT sandboxed — the
+     Accessibility/event-tap model the app is built on is incompatible with the App
+     Sandbox (the reason it can't go on the Mac App Store). -->
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
+</plist>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sparkle appcast (update feed) for Onyx Scribe. Host this at the SUFeedURL
+     baked into the app's Info.plist (e.g. https://onyxscribe.app/appcast.xml).
+     Each release adds an <item>; the enclosure's edSignature is produced by
+     Sparkle's `sign_update` with your EdDSA private key. See docs/SPARKLE.md.
+     The item below is a template — replace before publishing a real update. -->
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Onyx Scribe</title>
+    <link>https://onyxscribe.app/appcast.xml</link>
+    <description>Fully-local dictation for macOS.</description>
+    <language>en</language>
+    <!--
+    <item>
+      <title>Version 1.0.1</title>
+      <sparkle:releaseNotesLink>https://onyxscribe.app/notes/1.0.1.html</sparkle:releaseNotesLink>
+      <pubDate>Thu, 09 Jul 2026 12:00:00 +0000</pubDate>
+      <sparkle:version>101</sparkle:version>            <!-\- CFBundleVersion -\->
+      <sparkle:shortVersionString>1.0.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <enclosure
+        url="https://onyxscribe.app/releases/OnyxScribe-1.0.1.dmg"
+        sparkle:edSignature="REPLACE_WITH_sign_update_OUTPUT"
+        length="REPLACE_WITH_BYTE_SIZE"
+        type="application/octet-stream" />
+    </item>
+    -->
+  </channel>
+</rss>

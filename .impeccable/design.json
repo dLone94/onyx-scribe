@@ -1,0 +1,259 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-08T21:14:21Z",
+  "title": "Design System: Onyx Scribe",
+  "extensions": {
+    "colorMeta": {
+      "indigo": {
+        "role": "primary",
+        "displayName": "Onyx Indigo",
+        "canonical": "#5957D6",
+        "tonalRamp": [
+          "#16153A",
+          "#232159",
+          "#312E7C",
+          "#403CA3",
+          "#5957D6",
+          "#7A77E2",
+          "#9E9BEC",
+          "#C8C6F5"
+        ]
+      },
+      "indigo-bright": {
+        "role": "primary",
+        "displayName": "Edge-Light Indigo",
+        "canonical": "#948CFF",
+        "tonalRamp": [
+          "#1E1B47",
+          "#2F2A6E",
+          "#443D99",
+          "#5B52C4",
+          "#7568E6",
+          "#948CFF",
+          "#B3ADFF",
+          "#D5D2FF"
+        ]
+      },
+      "amber": {
+        "role": "secondary",
+        "displayName": "Onyx Amber",
+        "canonical": "#EBA33D",
+        "tonalRamp": [
+          "#3A2708",
+          "#5C3E0C",
+          "#835911",
+          "#AB7418",
+          "#D18F26",
+          "#EBA33D",
+          "#F2BC6C",
+          "#F8D8A4"
+        ]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Canvas",
+        "canonical": "#0E0E16",
+        "tonalRamp": [
+          "#060609",
+          "#0E0E16",
+          "#1B1B26",
+          "#2B2B3A",
+          "#3D3D52",
+          "#5A5A74",
+          "#8A8AA0",
+          "#C4C4D2"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel",
+        "canonical": "#1B1B26",
+        "tonalRamp": [
+          "#0B0B10",
+          "#13131B",
+          "#1B1B26",
+          "#252533",
+          "#323245",
+          "#48485F",
+          "#6E6E88",
+          "#A5A5BA"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#F2F2FA",
+        "tonalRamp": [
+          "#3A3A46",
+          "#55556400",
+          "#70708200",
+          "#8C8C9E",
+          "#A1A3BA",
+          "#C2C3D4",
+          "#DCDDE9",
+          "#F2F2FA"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display (Fraunces)",
+        "purpose": "Hero greeting and onboarding welcome only — opsz 144, SOFT 40. One per surface."
+      },
+      "title": {
+        "displayName": "Title (Fraunces)",
+        "purpose": "Page headers. opsz 96, SOFT 30."
+      },
+      "body": {
+        "displayName": "Body (SF Pro)",
+        "purpose": "All reading and functional text."
+      },
+      "label": {
+        "displayName": "Label (SF Pro)",
+        "purpose": "Controls, meta rows, badges; rare tracked caps."
+      },
+      "mono": {
+        "displayName": "Mono (SF Mono)",
+        "purpose": "The machine's own voice: Verbatim tone, spoken-command phrases."
+      }
+    },
+    "shadows": [
+      {
+        "name": "card-float",
+        "value": "0 8px 18px rgba(0,0,0,0.35)",
+        "purpose": "Luxury card resting shadow — the only 'height' in the system."
+      },
+      {
+        "name": "indigo-glow",
+        "value": "0 0 22px rgba(89,87,214,0.40)",
+        "purpose": "The 'alive' marker: selection, pill rim, mascot halo. May breathe ±25% on ambient timelines."
+      },
+      {
+        "name": "depth-over-strangers",
+        "value": "0 3px 10px rgba(0,0,0,0.35)",
+        "purpose": "Pill only — separation from unknown app backgrounds beneath it."
+      }
+    ],
+    "motion": [
+      {
+        "name": "smooth",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1) 550ms",
+        "purpose": "Content settles, the sliding nav indicator."
+      },
+      {
+        "name": "entrance",
+        "value": "cubic-bezier(0.16, 1, 0.30, 1) 720ms",
+        "purpose": "Hero and staggered section reveals (70ms steps)."
+      },
+      {
+        "name": "quick",
+        "value": "ease-out 180ms",
+        "purpose": "Hover, press, small state feedback."
+      },
+      {
+        "name": "ambient",
+        "value": "10-12fps timelines",
+        "purpose": "Aurora drift and mascot blink/breath — gated by Reduce Motion AND window visibility (AmbientGate)."
+      }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Capsule call-to-action — indigo fill, glow when enabled.",
+      "html": "<button class=\"ds-btn-primary\">Get Started</button>",
+      "css": ".ds-btn-primary { background: #5957D6; color: #fff; font: 600 14px/1 -apple-system, sans-serif; padding: 10px 28px; border: none; border-radius: 999px; box-shadow: 0 3px 12px rgba(89,87,214,0.45); transition: transform 180ms ease-out, box-shadow 180ms ease-out; cursor: pointer; } .ds-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(89,87,214,0.55); } .ds-btn-primary:focus-visible { outline: 2px solid #948CFF; outline-offset: 2px; }"
+    },
+    {
+      "name": "Luxury Card",
+      "kind": "card",
+      "refersTo": "card-luxury",
+      "description": "Panel surface with the light-catching top hairline — lit, not lifted.",
+      "html": "<div class=\"ds-card-luxury\"><h4>Your dictation, measured</h4><p>Totals up top; the chart shows words per day.</p></div>",
+      "css": ".ds-card-luxury { background: #1B1B26; border-radius: 16px; padding: 18px; color: #F2F2FA; box-shadow: 0 8px 18px rgba(0,0,0,0.35); border: 1px solid transparent; background-clip: padding-box; position: relative; font: 400 13px/1.4 -apple-system, sans-serif; } .ds-card-luxury::before { content: ''; position: absolute; inset: 0; border-radius: 16px; padding: 1px; background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.02)); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; } .ds-card-luxury h4 { margin: 0 0 6px; font: 500 16px/1.2 Georgia, serif; } .ds-card-luxury p { margin: 0; color: #A1A3BA; }"
+    },
+    {
+      "name": "Nav Row (active)",
+      "kind": "nav",
+      "refersTo": "nav-row-active",
+      "description": "Sidebar row with the sliding glowing indigo capsule.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-row ds-active\" href=\"#\">Insights</a><a class=\"ds-nav-row\" href=\"#\">Style</a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 4px; background: #0E0E16; padding: 10px; border-radius: 16px; width: 200px; } .ds-nav-row { display: flex; align-items: center; height: 46px; padding: 0 14px; border-radius: 13px; color: #A1A3BA; font: 600 14px/1 -apple-system, sans-serif; text-decoration: none; transition: background 180ms ease-out, color 180ms ease-out; } .ds-nav-row:hover { background: rgba(255,255,255,0.06); color: #F2F2FA; } .ds-nav-row.ds-active { background: #5957D6; color: #F2F2FA; box-shadow: 0 0 22px rgba(89,87,214,0.40); }"
+    },
+    {
+      "name": "Token Row",
+      "kind": "chip",
+      "refersTo": "row-token",
+      "description": "List entry row (Dictionary terms, exclusions) — faint fill, hairline border.",
+      "html": "<div class=\"ds-row-token\">Kubernetes<span>×</span></div>",
+      "css": ".ds-row-token { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.05); border-radius: 9px; padding: 8px 12px; color: #F2F2FA; font: 400 13px/1 -apple-system, sans-serif; width: 260px; } .ds-row-token span { color: #A1A3BA; cursor: pointer; } .ds-row-token span:hover { color: #FF453B; }"
+    },
+    {
+      "name": "The Pill (recording)",
+      "kind": "custom",
+      "refersTo": "pill",
+      "description": "The signature floating capsule: 36px, dark over any app, indigo-lit rim, inner top hairline, live waveform, one-shot glint on success.",
+      "html": "<div class=\"ds-pill\"><span class=\"ds-pill-dot\"></span><span class=\"ds-pill-bars\"><i></i><i></i><i></i><i></i><i></i><i></i></span><span class=\"ds-pill-time\">0:12</span><span class=\"ds-pill-lang\">EN</span></div>",
+      "css": ".ds-pill { display: inline-flex; align-items: center; gap: 10px; height: 36px; padding: 0 16px; background: rgba(28,28,31,0.94); border-radius: 999px; border: 1.2px solid; border-image: linear-gradient(180deg, rgba(148,140,255,0.85), rgba(89,87,214,0.30)) 1; box-shadow: 0 0 22px rgba(89,87,214,0.40), 0 3px 10px rgba(0,0,0,0.35); } .ds-pill-dot { width: 6px; height: 6px; border-radius: 50%; background: #FF453B; animation: ds-pulse 1.9s ease-in-out infinite; } .ds-pill-bars { display: inline-flex; gap: 3px; align-items: center; } .ds-pill-bars i { width: 2.5px; border-radius: 1.25px; background: linear-gradient(0deg, #5957D6, rgba(255,255,255,0.9)); height: 8px; } .ds-pill-bars i:nth-child(2) { height: 18px; } .ds-pill-bars i:nth-child(3) { height: 12px; } .ds-pill-bars i:nth-child(4) { height: 22px; } .ds-pill-bars i:nth-child(5) { height: 10px; } .ds-pill-bars i:nth-child(6) { height: 16px; } .ds-pill-time { color: rgba(255,255,255,0.9); font: 500 12px/1 ui-monospace, monospace; } .ds-pill-lang { color: rgba(255,255,255,0.8); font: 700 10px/1 -apple-system, sans-serif; background: rgba(255,255,255,0.14); padding: 3px 6px; border-radius: 999px; } @keyframes ds-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } } @media (prefers-reduced-motion: reduce) { .ds-pill-dot { animation: none; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Edge-Lit Onyx",
+    "overview": "Every surface is a dark stone catching indigo light at its edges. Depth never comes from lifting things off the page — it comes from where the light lands: a gradient hairline on a card's top edge, the rim of the pill, the facet tracery of the gem-cut cat. The canvas breathes under a slow ambient aurora that drifts only while you're looking at it. Fraunces marks the moments; SF Pro does the work. The register is 'editorial Sunday, printed on black.'",
+    "keyCharacteristics": [
+      "Committed dark: built dark, not themed dark (#0E0E16 canvas everywhere)",
+      "Depth by light: hairlines, rims, glows — not stacked drop shadows",
+      "Fraunces for moments, SF Pro for work, mono for the machine's own voice",
+      "Ambient life (aurora drift, cat blink, breathing glow) that pauses when unseen",
+      "One mascot, one accent family, one graphic secondary (amber)"
+    ],
+    "rules": [
+      {
+        "name": "The Edge-Lit Rule",
+        "body": "Indigo light belongs on edges and in glows — hairlines, rims, tracery, eyes. If you're about to flood a large area with saturated indigo, stop; the surface stays onyx and the light stays on the edge.",
+        "section": "colors"
+      },
+      {
+        "name": "The Amber-Is-Graphic Rule",
+        "body": "Amber appears only as graphic accent (bars, waves, degraded-state marks). Text in amber territory uses Amber Ink or Ink.",
+        "section": "colors"
+      },
+      {
+        "name": "The Fraunces-Is-For-Moments Rule",
+        "body": "The serif appears on heroes, titles, day markers, and the wordmark — never on labels, buttons, data, or body copy.",
+        "section": "typography"
+      },
+      {
+        "name": "The Typography-Is-The-Icon Rule",
+        "body": "Where a concept has a voice, set its name in that voice instead of adding an icon: Verbatim in mono, gentlemanly in wonky Fraunces, super casual in lowercase rounded. Never emoji.",
+        "section": "typography"
+      },
+      {
+        "name": "The Lit-Not-Lifted Rule",
+        "body": "If a surface needs more presence, give it light (hairline, glow, brighter edge) — not a bigger drop shadow.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep every surface on the committed dark canvas (#0E0E16) with panel cards (#1B1B26) — the app is built dark.",
+      "Do put indigo light on edges: hairlines, rims, tracery, glows.",
+      "Do push Fraunces to its display cut (opsz ≥ 96) and reserve it for moments.",
+      "Do gate every continuous animation on both Reduce Motion and actual window visibility (AmbientGate).",
+      "Do use typography as the icon where a concept has a voice; mono for what the machine hears or says verbatim.",
+      "Do keep the mascot singular: at most one Onyx Cat per surface."
+    ],
+    "donts": [
+      "Don't build the SaaS analytics dashboard — dense metric grids, gradient hero numbers, card-on-card layouts.",
+      "Don't ship cloud-AI product theater — sparkle icons, AI-magic gradient copy, chat-bubble skeuomorphism.",
+      "Don't add noisy utility chrome — spinners, aggressive toasts, neon status dots, a pill that shouts.",
+      "Don't transplant the generic modern-SaaS indigo template — rounded-everything drop-shadow cards on white.",
+      "Don't use emoji as iconography anywhere in product UI.",
+      "Don't nest cards, stack drop shadows for depth, or use gradient text.",
+      "Don't flood large areas with saturated indigo or set body text in amber.",
+      "Don't leave a TimelineView reachable in a hidden window — every hide path must land in a state that renders no timeline."
+    ]
+  }
+}
