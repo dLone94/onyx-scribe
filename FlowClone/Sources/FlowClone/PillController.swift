@@ -250,7 +250,9 @@ final class PillController: @unchecked Sendable {
 
     /// Bottom-center of the main screen, 24pt above the Dock.
     private func defaultOrigin() -> NSPoint {
-        let screen = NSScreen.main ?? NSScreen.screens.first!
+        // Screen lists can briefly be empty during login, display reconfiguration,
+        // or headless snapshot runs. Avoid crashing before a display appears.
+        guard let screen = NSScreen.main ?? NSScreen.screens.first else { return .zero }
         let f = screen.visibleFrame
         return NSPoint(x: f.midX - Self.panelSize.width / 2, y: f.minY + 24)
     }

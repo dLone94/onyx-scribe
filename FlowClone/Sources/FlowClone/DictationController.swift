@@ -645,6 +645,7 @@ final class DictationController {
     private func runStreamingCleanup(raw: String,
                                      session dictSession: DictationSession,
                                      engine: CleanupEngineKind,
+                                     languageCode: String,
                                      earlyInject: Bool) async -> StreamCleanupOutcome {
         let appName = dictSession.target?.appName
         let context = dictSession.target?.insertionContext
@@ -653,7 +654,8 @@ final class DictationController {
         guard earlyInject else {
             do {
                 let final = try await streamCleanup(
-                    engine: engine, raw: raw, app: appName, context: context
+                    engine: engine, raw: raw, app: appName, context: context,
+                    languageCode: languageCode
                 ) { snapshot in
                     await self.preview(snapshot, for: sessionID)
                 }
@@ -675,7 +677,8 @@ final class DictationController {
 
         do {
             _ = try await streamCleanup(
-                engine: engine, raw: raw, app: appName, context: context
+                engine: engine, raw: raw, app: appName, context: context,
+                languageCode: languageCode
             ) { snapshot in
                 await self.ingest(snapshot, into: state, session: session,
                                   needsLeadingSpace: needsLeadingSpace, sessionID: sessionID)
@@ -754,15 +757,18 @@ final class DictationController {
         raw: String,
         app: String?,
         context: ContextReader.Context?,
+        languageCode: String,
         onPartial: @escaping @Sendable (String) async -> Void
     ) async throws -> String {
         switch engine {
         case .apple:
             return try await AppleCleanup.cleanupStreaming(
-                raw, app: app, context: context, onPartial: onPartial)
+                raw, app: app, context: context, languageCode: languageCode,
+                onPartial: onPartial)
         case .ollama:
             return try await ollama.cleanupStreaming(
-                raw, app: app, context: context, onPartial: onPartial)
+                raw, app: app, context: context, languageCode: languageCode,
+                onPartial: onPartial)
         }
     }
 
@@ -860,7 +866,8 @@ final class DictationController {
                 pill?.setLanguage(r.code)
                 Diag.event("lang=\(r.code) conf=\(String(format: "%.2f", r.confidence))")
             } else {
-                raw = try await session.engine.transcribe(samples)
+                raw = try await session.engine.transcribe(
+                    samples, languageCode: session.language)
             }
             // Cancellation is authoritative — re-check after every await.
             guard isCurrent(session) else { Diag.event("result discarded (canceled)"); return }
@@ -987,7 +994,9 @@ final class DictationController {
             } else if Tone.current.isVerbatim {
                 // Verbatim: exactly as transcribed — no LLM, no filler strip.
                 // (Dictionary corrections above still apply; they're user rules.)
-            } else if !pro || !Settings.cleanupEnabled || wordCount < 5 {
+            } else if !pro || !Settings.cleanupEnabled
+                        || CleanupPassPolicy.shouldSkipForLength(
+                            wordCount: wordCount, languageCode: detectedLang) {
                 // Free tier, cleanup-off, or short utterances skip the LLM pass
                 // entirely — Parakeet already punctuates; just strip stray
                 // fillers. Context still applies mechanically (no mid-sentence
@@ -996,7 +1005,8 @@ final class DictationController {
                     raw, capitalize: ContextReader.isSentenceStart(session.target?.insertionContext))
                 if !pro {
                     Diag.event("free tier — verbatim only")
-                } else if wordCount < 5 && Settings.cleanupEnabled {
+                } else if CleanupPassPolicy.shouldSkipForLength(
+                    wordCount: wordCount, languageCode: detectedLang), Settings.cleanupEnabled {
                     Diag.event("short utterance — skipped cleanup")
                 }
             } else if Settings.streamingPreview {
@@ -1008,6 +1018,7 @@ final class DictationController {
                 latencyEngine = streamEngine == .apple ? .apple : .ollama
                 switch await runStreamingCleanup(
                     raw: raw, session: session, engine: streamEngine,
+                    languageCode: detectedLang,
                     earlyInject: Settings.streamingEarlyInject
                 ) {
                 case .cleaned(let text):
@@ -1055,9 +1066,11 @@ final class DictationController {
                         let t1 = Date()
                         let cleaned = try await (fallback == .apple
                             ? AppleCleanup.cleanup(raw, app: session.target?.appName,
-                                                   context: session.target?.insertionContext)
+                                                   context: session.target?.insertionContext,
+                                                   languageCode: detectedLang)
                             : ollama.cleanup(raw, app: session.target?.appName,
-                                             context: session.target?.insertionContext))
+                                             context: session.target?.insertionContext,
+                                             languageCode: detectedLang))
                         guard isCurrent(session) else { return }
                         latencyEngine = fallback == .apple ? .apple : .ollama
                         if !cleaned.isEmpty { final = cleaned }
@@ -1084,9 +1097,11 @@ final class DictationController {
                     do {
                         cleaned = try await (engineKind == .apple
                             ? AppleCleanup.cleanup(raw, app: session.target?.appName,
-                                                   context: session.target?.insertionContext)
+                                                   context: session.target?.insertionContext,
+                                                   languageCode: detectedLang)
                             : ollama.cleanup(raw, app: session.target?.appName,
-                                             context: session.target?.insertionContext))
+                                             context: session.target?.insertionContext,
+                                             languageCode: detectedLang))
                     } catch {
                         guard isCurrent(session) else { return }
                         // Symmetric failover before degrading to raw:
@@ -1098,14 +1113,16 @@ final class DictationController {
                             actualEngine = .ollama
                             t1 = Date()
                             cleaned = try await ollama.cleanup(raw, app: session.target?.appName,
-                                                               context: session.target?.insertionContext)
+                                                               context: session.target?.insertionContext,
+                                                               languageCode: detectedLang)
                         case .ollama where AppleCleanup.isAvailable && detectedLang == "en":
                             Diag.pipelineError("Ollama cleanup failed — trying Apple", error)
                             OllamaHealth.shared.noteFailure()
                             actualEngine = .apple
                             t1 = Date()
                             cleaned = try await AppleCleanup.cleanup(raw, app: session.target?.appName,
-                                                                     context: session.target?.insertionContext)
+                                                                     context: session.target?.insertionContext,
+                                                                     languageCode: detectedLang)
                         default:
                             throw error
                         }
@@ -1256,7 +1273,8 @@ final class DictationController {
             // Transcribe the spoken command.
             let heard: String = session.autoLanguage
                 ? (try await session.engine.transcribeAuto(samples, candidates: session.autoCandidates)).text
-                : (try await session.engine.transcribe(samples))
+                : (try await session.engine.transcribe(
+                    samples, languageCode: session.language))
             guard isCurrent(session) else { Diag.event("transform discarded (canceled)"); return }
             let cmd = VocabularyCorrector.apply(heard)
                 .trimmingCharacters(in: .whitespacesAndNewlines)

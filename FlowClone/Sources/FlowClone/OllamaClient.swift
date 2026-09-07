@@ -14,9 +14,11 @@ final class OllamaClient: Sendable {
     }
 
     func cleanup(_ transcript: String, app: String? = nil,
-                 context: ContextReader.Context? = nil) async throws -> String {
+                 context: ContextReader.Context? = nil,
+                 languageCode: String? = nil) async throws -> String {
         let request = try cleanupRequest(
-            transcript, app: app, context: context, stream: false)
+            transcript, app: app, context: context,
+            languageCode: languageCode, stream: false)
 
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
@@ -33,10 +35,12 @@ final class OllamaClient: Sendable {
         _ transcript: String,
         app: String? = nil,
         context: ContextReader.Context? = nil,
+        languageCode: String? = nil,
         onPartial: @escaping @Sendable (String) async -> Void
     ) async throws -> String {
         let request = try cleanupRequest(
-            transcript, app: app, context: context, stream: true)
+            transcript, app: app, context: context,
+            languageCode: languageCode, stream: true)
 
         let (bytes, response) = try await session.bytes(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
@@ -69,6 +73,7 @@ final class OllamaClient: Sendable {
 
     private func cleanupRequest(_ transcript: String, app: String?,
                                 context: ContextReader.Context?,
+                                languageCode: String?,
                                 stream: Bool) throws -> URLRequest {
         let body = ChatRequest(
             model: Settings.ollamaModel,
@@ -77,7 +82,8 @@ final class OllamaClient: Sendable {
             keep_alive: "10m",
             options: .init(temperature: 0.2, top_p: 0.9),
             messages: [
-                .init(role: "system", content: CleanupPrompt.system(app: app, context: context)),
+                .init(role: "system", content: CleanupPrompt.system(
+                    app: app, context: context, languageCode: languageCode)),
                 .init(role: "user", content: CleanupPrompt.transcriptUserTurn(transcript)),
             ]
         )

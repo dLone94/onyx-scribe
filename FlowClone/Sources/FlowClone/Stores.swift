@@ -167,10 +167,16 @@ final class StatsStore: ObservableObject {
             flowAnimate(.easeOut(duration: 0.4)) { self.totalWords += words }
 
             // Streak: consecutive calendar days with at least one dictation.
-            let today = Self.dayString(Date())
+            let now = Date()
+            let today = Self.dayString(now)
             let lastDay = self.defaults.string(forKey: "stats.lastDay")
             if lastDay != today {
-                let yesterday = Self.dayString(Date().addingTimeInterval(-86_400))
+                // Calendar days are not always 86,400 seconds across daylight-
+                // saving transitions. Subtract a civil day in the user's
+                // current calendar so a valid streak does not reset at DST.
+                let yesterdayDate = Calendar.current.date(
+                    byAdding: .day, value: -1, to: now) ?? now.addingTimeInterval(-86_400)
+                let yesterday = Self.dayString(yesterdayDate)
                 self.streakDays = (lastDay == yesterday) ? self.streakDays + 1 : 1
                 self.defaults.set(today, forKey: "stats.lastDay")
             }

@@ -14,6 +14,9 @@ protocol ASREngine: AnyObject, Sendable {
     var displayName: String { get }
     func load() async throws
     func transcribe(_ samples: [Float]) async throws -> String
+    /// Decode with a language captured by the owning session rather than a
+    /// setting that may change while the model is working.
+    func transcribe(_ samples: [Float], languageCode: String) async throws -> String
     /// Transcribe, auto-selecting the best of `candidates` (language codes) by
     /// decode confidence. Returns the winning text, its language code, and its
     /// confidence. Enables EN⇄BG auto-detect without the free-language-ID
@@ -24,12 +27,17 @@ protocol ASREngine: AnyObject, Sendable {
 }
 
 extension ASREngine {
+    func transcribe(_ samples: [Float], languageCode: String) async throws -> String {
+        try await transcribe(samples)
+    }
+
     /// Default: no confidence arbitration — transcribe with the engine's own
     /// pinned language and report the first candidate. Used by WhisperEngine,
     /// which doesn't expose comparable per-decode confidence.
     func transcribeAuto(_ samples: [Float], candidates: [String]) async throws
         -> (text: String, code: String, confidence: Float) {
-        (try await transcribe(samples), candidates.first ?? "en", 1)
+        let code = candidates.first ?? "en"
+        return (try await transcribe(samples, languageCode: code), code, 1)
     }
 }
 

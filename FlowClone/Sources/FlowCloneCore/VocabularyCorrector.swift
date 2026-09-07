@@ -20,13 +20,21 @@ public enum VocabularyCorrector {
         }
     }
 
-    /// Hot-path entry: applies the on-disk vocabulary with a modification-date
-    /// cache — the file is re-read and re-compiled only when it actually changed.
+    /// Hot-path entry: applies the on-disk vocabulary at `fileURL` with a
+    /// modification-date cache — the file is re-read and re-compiled only when
+    /// it actually changed. iOS passes its App Group vocabulary.txt.
+    public static func apply(_ text: String, fileURL: URL) -> String {
+        applyCompiled(text, cache.compiledRules(for: fileURL))
+    }
+
+#if os(macOS)
+    /// macOS convenience: the user's ~/.flowclone/vocabulary.txt.
     public static func apply(_ text: String) -> String {
         let path = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".flowclone/vocabulary.txt")
-        return applyCompiled(text, cache.compiledRules(for: path))
+        return apply(text, fileURL: path)
     }
+#endif
 
     /// Core, file-independent (unit-testable): applies `wrong => right` lines.
     public static func apply(_ text: String, rulesText: String) -> String {

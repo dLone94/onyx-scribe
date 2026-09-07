@@ -1,4 +1,5 @@
 import AppKit
+import FlowCloneCore
 import ApplicationServices
 
 /// Reads the text surrounding the caret in the focused text field via the
@@ -7,11 +8,9 @@ import ApplicationServices
 /// Returns nil gracefully for secure fields, non-text elements, and apps
 /// that don't expose AX text (some Electron apps).
 enum ContextReader {
-    struct Context {
-        let before: String // up to ~400 chars before the caret
-        let after: String  // up to ~200 chars after the caret
-        var isEmpty: Bool { before.isEmpty && after.isEmpty }
-    }
+    /// Shared with iOS (FlowCloneCore.CaretContext); kept under the old name
+    /// so every macOS call site reads unchanged.
+    typealias Context = CaretContext
 
     static func read() -> Context? {
         let systemWide = AXUIElementCreateSystemWide()

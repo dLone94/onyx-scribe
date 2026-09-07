@@ -24,19 +24,23 @@ enum AppleCleanup {
     }
 
     static func cleanup(_ transcript: String, app: String? = nil,
-                        context: ContextReader.Context? = nil) async throws -> String {
+                        context: ContextReader.Context? = nil,
+                        languageCode: String? = nil) async throws -> String {
         guard #available(macOS 26.0, *) else { throw Unavailable() }
-        return try await FoundationModelCleanup.cleanup(transcript, app: app, context: context)
+        return try await FoundationModelCleanup.cleanup(
+            transcript, app: app, context: context, languageCode: languageCode)
     }
 
     /// Streaming cleanup: identical output to `cleanup`, but invokes `onPartial`
     /// with each cumulative snapshot so the caller can preview / early-inject.
     static func cleanupStreaming(_ transcript: String, app: String? = nil,
                                  context: ContextReader.Context? = nil,
+                                 languageCode: String? = nil,
                                  onPartial: @Sendable (String) async -> Void) async throws -> String {
         guard #available(macOS 26.0, *) else { throw Unavailable() }
         return try await FoundationModelCleanup.cleanupStreaming(
-            transcript, app: app, context: context, onPartial: onPartial)
+            transcript, app: app, context: context, languageCode: languageCode,
+            onPartial: onPartial)
     }
 
     static func rewrite(original: String, command: String) async throws -> String {
@@ -103,12 +107,14 @@ enum FoundationModelCleanup {
     }
 
     static func cleanup(_ transcript: String, app: String? = nil,
-                        context: ContextReader.Context? = nil) async throws -> String {
+                        context: ContextReader.Context? = nil,
+                        languageCode: String? = nil) async throws -> String {
         // Stable prompt lives in the (prewarmed) session instructions; the
         // per-dictation bits ride along in the user turn.
         let session = FMSessionPool.shared.take(instructions: CleanupPrompt.stableSystem())
         defer { FMSessionPool.shared.refillAsync() } // next dictation stays warm
-        let situational = CleanupPrompt.situational(app: app, context: context)
+        let situational = CleanupPrompt.situational(
+            app: app, context: context, languageCode: languageCode)
         let prompt = (situational.isEmpty ? "" : situational + "\n\n")
             + CleanupPrompt.transcriptUserTurn(transcript)
         let response = try await session.respond(
@@ -121,10 +127,12 @@ enum FoundationModelCleanup {
     /// and returns the final trimmed text — same result `cleanup` would produce.
     static func cleanupStreaming(_ transcript: String, app: String? = nil,
                                  context: ContextReader.Context? = nil,
+                                 languageCode: String? = nil,
                                  onPartial: @Sendable (String) async -> Void) async throws -> String {
         let session = FMSessionPool.shared.take(instructions: CleanupPrompt.stableSystem())
         defer { FMSessionPool.shared.refillAsync() } // F14: keep the next dictation warm
-        let situational = CleanupPrompt.situational(app: app, context: context)
+        let situational = CleanupPrompt.situational(
+            app: app, context: context, languageCode: languageCode)
         let prompt = (situational.isEmpty ? "" : situational + "\n\n")
             + CleanupPrompt.transcriptUserTurn(transcript)
         let stream = session.streamResponse(to: prompt, options: GenerationOptions(sampling: .greedy))

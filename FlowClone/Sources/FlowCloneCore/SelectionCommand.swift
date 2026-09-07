@@ -159,7 +159,11 @@ public enum SelectionCommand {
 public enum TransformPayload {
     public static func json(kind: TransformKind, command: String, selection: String) -> String {
         struct P: Encodable { let kind: String; let command: String; let selection: String }
-        let encoded = try? JSONEncoder().encode(
+        let encoder = JSONEncoder()
+        // Stable bytes make prompt equivalence checks deterministic and avoid
+        // sending needlessly different token sequences for identical requests.
+        encoder.outputFormatting = [.sortedKeys]
+        let encoded = try? encoder.encode(
             P(kind: kind.id, command: command, selection: selection))
         guard let encoded, let s = String(data: encoded, encoding: .utf8) else { return "{}" }
         return s

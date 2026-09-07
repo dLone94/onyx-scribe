@@ -28,6 +28,12 @@ final class Transcriber: @unchecked Sendable {
         try await transcribeDetailed(samples, languageCode: language?.rawValue).text
     }
 
+    /// Session-pinned decode: this overload never re-reads UserDefaults after
+    /// recording has begun.
+    func transcribe(_ samples: [Float], languageCode: String) async throws -> String {
+        try await transcribeDetailed(samples, languageCode: languageCode).text
+    }
+
     /// Transcribe forcing a specific language's script filter (nil = auto), and
     /// return the confidence alongside the text. The confidence discriminates a
     /// correct-script decode from a forced-wrong-script one, which is what the

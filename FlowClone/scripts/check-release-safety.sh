@@ -36,7 +36,10 @@ FORBIDDEN=(
 
 fail=0
 for s in "${FORBIDDEN[@]}"; do
-  if strings "$BIN" | grep -qF -- "$s"; then
+  # Do not use grep -q here: with `pipefail`, grep exits as soon as it finds a
+  # match, `strings` can then die with SIGPIPE, and the pipeline incorrectly
+  # looks unsuccessful — exactly the forbidden-string case we must catch.
+  if strings "$BIN" | grep -F -- "$s" >/dev/null; then
     echo "❌ forbidden string \"$s\" present in $BIN"
     fail=1
   fi

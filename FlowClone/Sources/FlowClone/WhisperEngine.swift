@@ -17,11 +17,17 @@ final class WhisperEngine: ASREngine, @unchecked Sendable {
     }
 
     func transcribe(_ samples: [Float]) async throws -> String {
-        guard let pipe else { throw EngineError.notLoaded }
         let language = UserDefaults.standard.string(forKey: "language") ?? "en"
+        return try await transcribe(samples, languageCode: language)
+    }
+
+    /// Session-pinned decode: the language cannot change underneath an
+    /// utterance while the model is running.
+    func transcribe(_ samples: [Float], languageCode: String) async throws -> String {
+        guard let pipe else { throw EngineError.notLoaded }
         let results = try await pipe.transcribe(
             audioArray: samples,
-            decodeOptions: DecodingOptions(language: language)
+            decodeOptions: DecodingOptions(language: languageCode)
         )
         return results.map(\.text).joined(separator: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)

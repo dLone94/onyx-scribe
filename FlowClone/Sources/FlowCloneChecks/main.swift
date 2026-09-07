@@ -470,6 +470,9 @@ do {
     } else {
         check(false, "payload is valid JSON despite hostile selection")
     }
+    check(TransformPayload.json(kind: .concise, command: "shorter", selection: "text")
+            == #"{"command":"shorter","kind":"concise","selection":"text"}"#,
+          "transform payload serialization is deterministic")
 }
 
 print("PromptSanitizer")
@@ -914,6 +917,19 @@ check(bulgarianGuidance?.contains("Bulgarian") == true,
       "Bulgarian cleanup receives an explicit language lock")
 check(LanguageCleanupGuidance.instruction(for: "en") == nil,
       "other languages do not receive Bulgarian-only guidance")
+let bulgarianPrompt = CleanupPromptBuilder.system(
+    languageCode: "bg", inputs: CleanupPromptInputs())
+check(bulgarianPrompt.contains("## Transcript language")
+        && bulgarianPrompt.contains("Cyrillic only"),
+      "Bulgarian guidance is wired into the production cleanup prompt")
+let englishPrompt = CleanupPromptBuilder.system(
+    languageCode: "en", inputs: CleanupPromptInputs())
+check(!englishPrompt.contains("## Transcript language"),
+      "English cleanup prompt has no Bulgarian guidance")
+let profilePrompt = CleanupPromptBuilder.situational(
+    app: "Slack", inputs: CleanupPromptInputs(appProfiles: ["slack": "Keep it short."]))
+check(profilePrompt.contains("App-specific instruction: Keep it short."),
+      "app profiles match destination names case-insensitively")
 
 print("\n\(score.passed) passed, \(score.failed) failed")
 exit(score.failed == 0 ? 0 : 1)

@@ -496,7 +496,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         try? FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let template = """
-        # FlowClone personal dictionary — one entry per line, # lines are ignored.
+        # Onyx Scribe personal dictionary — one entry per line, # lines are ignored.
         #
         # Plain lines are hints for the AI cleanup (names, jargon, products):
         # Todor Topalov
