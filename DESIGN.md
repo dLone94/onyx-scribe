@@ -123,7 +123,8 @@ graphic-only counterpoint; red and green speak only for recording and success.
 - **Deep Indigo** (#3C3999): gradient partner for indigo fills; the shadowed
   side of lit surfaces.
 - **Crystal** (#CCC9FF): the light-struck extreme — gem facets catching full
-  light. Rare by design.
+  light, and the top-edge hairline of every Hub panel (`FlowColor.crystal`).
+  Only ever a 1px line or a facet; never a fill, never text.
 
 ### Secondary
 - **Onyx Amber** (#EBA33D): graphic-only warmth — chart peaks, the degraded
@@ -187,11 +188,30 @@ wonky Fraunces, super casual in lowercase rounded. Never emoji.
 ## 4. Elevation
 
 Lit, not lifted. Surfaces are flat panels distinguished by fill (#1B1B26 on
-#0E0E16), a light-catching gradient hairline on the top edge (white 14% → 2%),
-and shadows that read as *glow* rather than height: an indigo bloom under
+#0E0E16), a light-catching gradient hairline on the top edge, and shadows that
+read as *glow* rather than height: an indigo bloom under
 whatever is alive, a soft black depth shadow only where a surface floats over
 foreign content (the pill). There is no shadow ramp and no z-stack of cards —
 nested cards are forbidden.
+
+### The Edge-Lit Surface
+One shared treatment (`edgeLit` in `HubChrome.swift`) lights every Hub panel
+and row group, so six pages read as one material:
+- **Hairline:** 1px gradient stroke — Crystal 34% at the top edge → white 9% by
+  45% of the height → white 3.5% at the bottom. The light lands on top and
+  fades down the sides.
+- **Wash:** Edge-Light Indigo 7% → clear, top to ~55% of the height, just
+  inside the edge.
+- **No shadow, no glow.** Quiet panels (`quietPanel`, fill Panel at 72%) and
+  row groups (fill white 4%) are lit only; the floating luxury card below is
+  the one surface that also carries a shadow.
+
+### The Canvas
+`FlowCanvasBackground`: Canvas (#0E0E16) under three blurred pools that drift
+slowly — Onyx Indigo 42% upper-left (the main light), Edge-Light Indigo 10%
+right of centre (keeps wide pages from falling to flat black), Onyx Amber 9%
+lower-right. Shared by the Hub and onboarding; static under Reduce Motion and
+whenever no brand window is visible.
 
 ### Shadow Vocabulary
 - **Card float** (`0 8px 18px rgba(0,0,0,0.35)` equivalent): the luxury card's
@@ -214,6 +234,12 @@ nested cards are forbidden.
   padding, indigo glow shadow when enabled
 - **Hover / Focus:** quick ease-out (180ms); disabled state falls to 40% gray
 - **Secondary:** plain text buttons in Soft Ink, 12pt — quiet by design
+- **Quiet capsule** (`QuietCapsuleButtonStyle`): the secondary action that
+  needs a hit target — Scratchpad's Export / Copy All / Clear, Dictionary's
+  Add. 26px tall, 13px horizontal padding, white 6.5% fill (13% pressed), the
+  same Crystal-topped hairline as panels, Ink 12pt medium label; disabled
+  drops the label to 38%. Destructive roles stay quiet — the confirmation
+  dialog carries the weight. Never ship a stock grey push button on the canvas.
 
 ### Cards / Containers ("luxury cards")
 - **Corner Style:** continuous 14–16px
@@ -223,15 +249,46 @@ nested cards are forbidden.
 - **Internal Padding:** 16–18px
 - **Hover:** scale 1.008–1.025 with the quick curve; never a color flash
 
+### Quiet panels (Hub)
+- **Use:** wherever content genuinely needs a frame — a chart, an editor, the
+  tone preview, grouped rows. Never as decoration, never nested.
+- **Treatment:** the Edge-Lit Surface above; 10–12px continuous corners;
+  16px internal padding.
+
+### Rhythm panel (Insights centrepiece)
+One surface, not a grid: thirty days of words-per-day on the left, top three
+destination apps on the right behind a vertical hairline.
+- **Bars:** an onyx column per day — Onyx Indigo fading to 32% at the base,
+  with a 1.5px Crystal cap (the lit top edge). An empty day is a 2px hairline
+  tick; today's tick is Edge-Light Indigo.
+- **Peak:** Onyx Amber with its value above it — only when at least two days
+  have words (nothing to single out otherwise).
+- **Empty state:** the ticks stay; one centred Soft Ink sentence teaches the
+  gesture. Never a blank card.
+
+### Tone preview (Style)
+The tone panel shows the user's own recent dictation, not a canned sentence:
+- **YOU SAID** — caps label (9pt semibold, tracking 1.3), then the transcript
+  in mono 12pt Soft Ink (mono = what the machine heard).
+- **LANDS AS** — same label, then the result in SF 14pt Ink beside a 2px
+  Edge-Light Indigo bar. While the local engine works: "polishing your words…"
+  in Soft Ink — text, never a spinner.
+- **Fallbacks:** engine unreachable → the canned example, labelled as a sample;
+  no history or a locked tone → the canned example as before.
+
 ### Inputs / Fields
 - **Style:** native macOS rounded fields on dark (darkAqua), or token rows
   (white 4.5% fill, 9px radius, 1px white 5% border) for list entries
 - **Focus:** system focus ring — native, not custom
+- **Tint:** the Hub sets `.tint` to Onyx Indigo, so native switches, pickers
+  and focus rings speak the brand color instead of the system accent
 
 ### Navigation (Hub sidebar)
 - **Style:** quiet, narrow rail (176pt) on the aurora canvas; brandmark block
   (cat 30 + Fraunces wordmark 16) above 32px nav rows; Settings pinned at the
-  bottom past a hairline; ⌘1–⌘6 shortcuts
+  bottom past a hairline; ⌘1–⌘6 shortcuts. Positioned from the window's top
+  (ignores the top safe area), so a page that adds a native toolbar (History)
+  cannot shift the rail
 - **Active:** a restrained dark-blackberry fill (#332B57, 7px radius) — no
   glow, no traveling capsule; icon+label in Ink. Bright violet stays reserved
   for focus, recording, and primary actions
@@ -270,6 +327,9 @@ Motion and when its window isn't visible.
 - **Do** use typography as the icon where a concept has a voice; mono for what
   the machine hears or says verbatim.
 - **Do** keep the mascot singular: at most one Onyx Cat per surface.
+- **Do** build every new Hub container from `quietPanel` / `RowGroup` so it
+  inherits the Edge-Lit Surface, and every secondary button from the quiet
+  capsule.
 
 ### Don't:
 - **Don't** build "the SaaS analytics dashboard" — dense metric grids, gradient
@@ -281,6 +341,8 @@ Motion and when its window isn't visible.
 - **Don't** transplant the "generic modern-SaaS indigo template" — rounded-
   everything drop-shadow cards on white.
 - **Don't** use emoji as iconography anywhere in product UI.
+- **Don't** leave native controls on the system accent or ship stock grey
+  push buttons on the dark canvas.
 - **Don't** nest cards, stack drop shadows for depth, or use gradient text.
 - **Don't** flood large areas with saturated indigo or set body text in amber.
 - **Don't** leave a TimelineView reachable in a hidden window — every hide path
