@@ -95,14 +95,7 @@ struct RowGroup<Content: View>: View {
 
     var body: some View {
         VStack(spacing: 0) { content }
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(FlowColor.rowFill)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)
-            )
+            .edgeLit(cornerRadius: 10, fill: FlowColor.rowFill)
     }
 }
 
@@ -154,14 +147,50 @@ extension View {
     /// The only sanctioned "card": used where content genuinely needs a frame
     /// (a chart, an editor), never as decoration.
     func quietPanel(cornerRadius: CGFloat = 12) -> some View {
-        background(
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(FlowColor.panel.opacity(0.65))
+        edgeLit(cornerRadius: cornerRadius, fill: FlowColor.panel.opacity(0.72))
+    }
+
+    /// The Edge-Lit surface (DESIGN.md §4, "lit, not lifted"): a flat fill
+    /// whose TOP edge catches indigo light — a gradient hairline that fades
+    /// down the sides, plus a faint wash of the same light just inside the
+    /// edge. No shadow, no glow: presence comes from where the light lands.
+    func edgeLit(cornerRadius: CGFloat, fill: Color) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        return background(
+            shape.fill(fill)
+                .overlay(shape.fill(LinearGradient(
+                    colors: [FlowColor.indigoBright.opacity(0.07), .clear],
+                    startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.55))))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)
+            shape.strokeBorder(LinearGradient(
+                stops: [.init(color: FlowColor.crystal.opacity(0.34), location: 0),
+                        .init(color: Color.white.opacity(0.09), location: 0.45),
+                        .init(color: Color.white.opacity(0.035), location: 1)],
+                startPoint: .top, endPoint: .bottom), lineWidth: 1)
+            .allowsHitTesting(false)
         )
+    }
+}
+
+/// Secondary action as a quiet capsule (DESIGN.md §5: capsule shape, quiet by
+/// design) — replaces stock grey push buttons on the dark canvas. Destructive
+/// roles stay quiet too; their confirmation dialog carries the weight.
+struct QuietCapsuleButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(FlowColor.ink.opacity(isEnabled ? 0.92 : 0.38))
+            .padding(.horizontal, 13)
+            .frame(height: 26)
+            .background(Capsule().fill(Color.white.opacity(configuration.isPressed ? 0.13 : 0.065)))
+            .overlay(Capsule().strokeBorder(LinearGradient(
+                colors: [FlowColor.crystal.opacity(isEnabled ? 0.30 : 0.12), Color.white.opacity(0.05)],
+                startPoint: .top, endPoint: .bottom), lineWidth: 1))
+            .contentShape(Capsule())
+            .animation(.easeOut(duration: 0.18), value: configuration.isPressed)
     }
 }
 

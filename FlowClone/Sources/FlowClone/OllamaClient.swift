@@ -28,6 +28,33 @@ final class OllamaClient: Sendable {
         return decoded.message.content.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// One-shot cleanup under an explicit system prompt — the Style page's
+    /// live tone preview composes the prompt for a tone other than the active one.
+    func cleanup(_ transcript: String, systemPrompt: String) async throws -> String {
+        let body = ChatRequest(
+            model: Settings.ollamaModel,
+            stream: false,
+            think: false,
+            keep_alive: "10m",
+            options: .init(temperature: 0.2, top_p: 0.9),
+            messages: [
+                .init(role: "system", content: systemPrompt),
+                .init(role: "user", content: CleanupPrompt.transcriptUserTurn(transcript)),
+            ]
+        )
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30 // a preview must not hang on a cold model
+        request.httpBody = try JSONEncoder().encode(body)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            throw OllamaError.badResponse(String(data: data, encoding: .utf8) ?? "")
+        }
+        let decoded = try JSONDecoder().decode(ChatResponse.self, from: data)
+        return decoded.message.content.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     /// Streams Gemma's token deltas and reports cumulative cleaned text. The
     /// request is otherwise identical to `cleanup`, so enabling live preview
     /// changes latency perception without changing prompt or output policy.

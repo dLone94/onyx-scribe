@@ -37,6 +37,8 @@ enum FlowColor {
     /// Bright indigo for accents and figures on the DARK canvas (it glows;
     /// the deeper `indigo`/`indigoDeep` are for fills and light surfaces).
     static let indigoBright = Color(red: 0.58,  green: 0.55,  blue: 1.0)
+    /// Crystal (#CCC9FF): the light-struck extreme — edge hairlines only.
+    static let crystal     = Color(red: 0.80,  green: 0.79,  blue: 1.0)
 
     /// The Hub is a dark, glowing editorial surface. Canvas is a deep near-black
     /// with an indigo cast (never flat black); ink is near-white; panels lift a
@@ -126,9 +128,14 @@ struct FlowCanvasBackground: View {
         let dx2 = 54 * cos(t * 0.037), dy2 = 40 * sin(t * 0.048)
         return ZStack {
             FlowColor.canvas
-            Ellipse().fill(FlowColor.indigo.opacity(0.30))
-                .frame(width: 660, height: 420).blur(radius: 150)
+            Ellipse().fill(FlowColor.indigo.opacity(0.42))
+                .frame(width: 700, height: 440).blur(radius: 150)
                 .offset(x: -150 + dx1, y: -250 + dy1)
+            // A second, cooler pool keeps the right side of wide pages from
+            // falling to flat black.
+            Ellipse().fill(FlowColor.indigoBright.opacity(0.10))
+                .frame(width: 520, height: 320).blur(radius: 160)
+                .offset(x: 380 - dx2, y: -40 + dy1)
             Ellipse().fill(FlowColor.amber.opacity(0.09))
                 .frame(width: 520, height: 340).blur(radius: 150)
                 .offset(x: 320 + dx2, y: 360 + dy2)

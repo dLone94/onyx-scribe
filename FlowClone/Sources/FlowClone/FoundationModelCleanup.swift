@@ -31,6 +31,13 @@ enum AppleCleanup {
             transcript, app: app, context: context, languageCode: languageCode)
     }
 
+    /// One-shot cleanup under explicit instructions (Style page live preview).
+    /// Uses its own session — never the pipeline's prewarmed one.
+    static func cleanup(_ transcript: String, instructions: String) async throws -> String {
+        guard #available(macOS 26.0, *) else { throw Unavailable() }
+        return try await FoundationModelCleanup.cleanup(transcript, instructions: instructions)
+    }
+
     /// Streaming cleanup: identical output to `cleanup`, but invokes `onPartial`
     /// with each cumulative snapshot so the caller can preview / early-inject.
     static func cleanupStreaming(_ transcript: String, app: String? = nil,
@@ -142,6 +149,14 @@ enum FoundationModelCleanup {
             await onPartial(latest)
         }
         return latest.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    static func cleanup(_ transcript: String, instructions: String) async throws -> String {
+        let session = LanguageModelSession(instructions: instructions)
+        let response = try await session.respond(
+            to: CleanupPrompt.transcriptUserTurn(transcript),
+            options: GenerationOptions(sampling: .greedy))
+        return response.content.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     static func rewrite(original: String, command: String) async throws -> String {

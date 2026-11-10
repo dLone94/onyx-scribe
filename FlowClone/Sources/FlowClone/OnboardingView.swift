@@ -311,7 +311,7 @@ struct OnboardingView: View {
 
     /// Three quiet proof points that carry the local-first promise.
     private var trustRow: some View {
-        HStack(spacing: 22) {
+        HStack(alignment: .top, spacing: 14) {
             trustItem("wifi.slash", "No cloud")
             trustItem("cpu", "Neural Engine")
             trustItem("lock.fill", "Audio never stored")
@@ -321,14 +321,19 @@ struct OnboardingView: View {
 
     private func trustItem(_ symbol: String, _ label: String) -> some View {
         VStack(spacing: 6) {
+            // Fixed glyph box: SF Symbols differ in height, which staggered
+            // the three labels.
             Image(systemName: symbol)
                 .font(.system(size: 15))
                 .foregroundStyle(FlowColor.indigoBright)
+                .frame(height: 18)
             Text(label)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .fixedSize()
         }
-        .frame(width: 92)
+        .frame(width: 118)
         .accessibilityElement(children: .combine)
     }
 

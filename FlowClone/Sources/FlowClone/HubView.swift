@@ -77,6 +77,9 @@ struct HubView: View {
         }
         .frame(minWidth: 940, minHeight: 640)
         .background(FlowCanvasBackground())
+        // Native controls (switches, pickers, focus rings) speak the brand's
+        // indigo instead of the system accent.
+        .tint(FlowColor.indigo)
     }
 
     private var content: some View {
@@ -124,7 +127,7 @@ struct FlowSidebar: View {
                 }
             }
             .padding(.leading, 10)
-            .padding(.top, 38)
+            .padding(.top, 66)
             .padding(.bottom, 22)
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Onyx Scribe — local dictation")
@@ -144,6 +147,10 @@ struct FlowSidebar: View {
         }
         .frame(width: 176)
         .padding(.horizontal, 12)
+        // Positioned from the window's top, not the safe area: History adds a
+        // native toolbar that deepens the title bar, which used to push the
+        // whole rail down ~10pt on that one page.
+        .ignoresSafeArea(.container, edges: .top)
     }
 
     private func navRow(_ page: HubModel.Page, shortcut: Int) -> some View {
@@ -212,14 +219,10 @@ struct HomeView: View {
                 // The primary summary — one sentence, then quiet figures.
                 leadParagraph
                 figureStrip
-                PerformancePanel(stats: stats)
 
-                // Weekly trend + destinations.
-                HStack(alignment: .top, spacing: 14) {
-                    ActivityChart(history: history)
-                    TopAppsPanel(history: history)
-                }
-                .frame(height: 176)
+                // The centrepiece: thirty days of rhythm + destinations, one surface.
+                RhythmPanel(history: history)
+                PerformancePanel(stats: stats)
 
                 // Recent activity, in the same rows History uses.
                 HubSection(title: "Recent") {
@@ -301,7 +304,7 @@ struct HomeView: View {
 
     private func figure(_ value: String, _ label: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(value).font(.system(size: 20, weight: .semibold)).foregroundStyle(FlowColor.ink)
+            Text(value).font(.system(size: 24, weight: .semibold)).foregroundStyle(FlowColor.ink)
             Text(label).font(.system(size: 11)).foregroundStyle(FlowColor.inkSoft)
         }
         .accessibilityElement(children: .combine)
@@ -546,63 +549,8 @@ struct ReadinessRow: View {
     }
 }
 
-/// Words per day, last 14 days — flat single-series bars, amber picking out
-/// only the peak. No glow, no growth animation: the chart states a fact.
-struct ActivityChart: View {
-    @ObservedObject var history: HistoryStore
-
-    private var days: [(date: Date, words: Int)] {
-        let cal = Calendar.current
-        let today = cal.startOfDay(for: Date())
-        let byDay = Dictionary(grouping: history.entries) { cal.startOfDay(for: $0.date) }
-        return (0..<14).reversed().map { back in
-            let day = cal.date(byAdding: .day, value: -back, to: today)!
-            return (day, byDay[day]?.reduce(0) { $0 + $1.wordCount } ?? 0)
-        }
-    }
-
-    var body: some View {
-        let data = days
-        let maxWords = max(data.map(\.words).max() ?? 1, 1)
-        return VStack(alignment: .leading, spacing: 10) {
-            Text("Last 14 days")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(FlowColor.ink)
-            HStack(alignment: .bottom, spacing: 5) {
-                ForEach(Array(data.enumerated()), id: \.offset) { _, day in
-                    let isPeak = day.words == maxWords && day.words > 0
-                    let barHeight = max(4, 74 * CGFloat(day.words) / CGFloat(maxWords))
-                    VStack(spacing: 3) {
-                        if isPeak {
-                            Text("\(day.words)")
-                                .font(.system(size: 9, weight: .semibold))
-                                .foregroundStyle(FlowColor.amber)
-                        }
-                        UnevenRoundedRectangle(topLeadingRadius: 3, topTrailingRadius: 3)
-                            .fill(isPeak ? FlowColor.amber
-                                  : (day.words > 0 ? FlowColor.indigo : FlowColor.hairline))
-                            .frame(width: 15, height: barHeight)
-                    }
-                    .help("\(day.date.formatted(date: .abbreviated, time: .omitted)): \(day.words) words")
-                    .accessibilityLabel("\(day.date.formatted(date: .abbreviated, time: .omitted)): \(day.words) words")
-                }
-            }
-            .frame(height: 92, alignment: .bottom)
-            HStack {
-                Text(data.first!.date.formatted(.dateTime.day().month(.abbreviated)))
-                Spacer()
-                Text("today")
-            }
-            .font(.system(size: 9))
-            .foregroundStyle(FlowColor.inkSoft.opacity(0.8))
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity)
-        .quietPanel()
-    }
-}
-
 /// Where dictations land — top 3 apps with proportional bars, direct labels.
+/// Unframed: it sits inside RhythmPanel's surface, not in a box of its own.
 struct TopAppsPanel: View {
     @ObservedObject var history: HistoryStore
 
@@ -645,8 +593,7 @@ struct TopAppsPanel: View {
             Spacer(minLength: 0)
         }
         .padding(16)
-        .frame(width: 210, alignment: .topLeading)
-        .quietPanel()
+        .frame(width: 200, alignment: .topLeading)
     }
 }
 
@@ -680,7 +627,7 @@ struct ScratchpadView: View {
                     Button("Clear…", role: .destructive) { confirmClear() }
                         .disabled(scratch.text.isEmpty)
                 }
-                .controlSize(.regular)
+                .buttonStyle(QuietCapsuleButtonStyle())
             }
 
             TextEditor(text: Binding(get: { scratch.text }, set: { scratch.text = $0 }))
@@ -763,19 +710,21 @@ struct StyleView: View {
                            caption: "Applies with every tone — it's spelling, not style.") {
                     RowGroup {
                         HubRow {
-                            Toggle(isOn: Binding(
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("American English")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(FlowColor.ink)
+                                Text("US spelling and idioms — color, not colour.")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(FlowColor.inkSoft)
+                            }
+                            Spacer(minLength: 12)
+                            // Switch on the trailing edge, like every other row.
+                            Toggle("American English", isOn: Binding(
                                 get: { Settings.usEnglish },
                                 set: { Settings.usEnglish = $0; AppleCleanup.prewarm(); model.objectWillChange.send() }
-                            )) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("American English")
-                                        .font(.system(size: 13))
-                                        .foregroundStyle(FlowColor.ink)
-                                    Text("US spelling and idioms — color, not colour.")
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(FlowColor.inkSoft)
-                                }
-                            }
+                            ))
+                            .labelsHidden()
                             .toggleStyle(.switch)
                             .controlSize(.small)
                         }
@@ -805,6 +754,7 @@ struct StyleView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .navigationTitle("Style")
+        .onAppear { TonePreviewModel.shared.prepare(from: HistoryStore.shared.entries) }
     }
 
     private func voiceCommandRow(_ phrase: String, _ effect: String) -> some View {
@@ -903,6 +853,7 @@ struct ToneDetailPanel: View {
     let active: Bool
     let locked: Bool
     @ObservedObject var model: HubModel
+    @ObservedObject private var preview = TonePreviewModel.shared
 
     /// Restyle tones run on the local Ollama model; faithful/verbatim don't.
     private var needsOllama: Bool { !tone.instruction.isEmpty }
@@ -929,7 +880,13 @@ struct ToneDetailPanel: View {
                 .foregroundStyle(FlowColor.ink.opacity(0.9))
                 .fixedSize(horizontal: false, vertical: true)
 
-            // The example, quoted in the tone's own typography. fixedSize keeps
+            if let sample = preview.sample, !locked {
+                // Live: the user's own last dictation, in this tone.
+                TonePreviewPair(tone: tone, sample: sample, phase: preview.phase(for: tone))
+                    .padding(.top, 4)
+                    .task(id: tone.id) { await preview.load(tone) }
+            } else {
+            // No history yet (or locked): the canned example. fixedSize keeps
             // the accent bar hugging the text instead of stretching the panel.
             HStack(spacing: 10) {
                 Rectangle()
@@ -944,6 +901,7 @@ struct ToneDetailPanel: View {
             }
             .fixedSize(horizontal: false, vertical: true)
             .padding(.vertical, 2)
+            }
 
             if locked {
                 HStack(spacing: 6) {

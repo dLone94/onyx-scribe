@@ -26,6 +26,7 @@ struct DictionaryView: View {
                         .onSubmit(addTerm)
                         .accessibilityLabel("New vocabulary term")
                     Button("Add", action: addTerm)
+                        .buttonStyle(QuietCapsuleButtonStyle())
                         .disabled(model.newTerm.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
                 if vocab.terms.isEmpty {
@@ -59,10 +60,6 @@ struct DictionaryView: View {
                         ForEach(Array(learned.terms.enumerated()), id: \.element) { index, term in
                             if index > 0 { RowDivider() }
                             HubRow {
-                                Image(systemName: "sparkle")
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(FlowColor.indigoBright)
-                                    .accessibilityHidden(true)
                                 Text(term).font(.system(size: 13)).foregroundStyle(FlowColor.ink)
                                 Spacer()
                                 Button("Add to Vocabulary") {
@@ -101,6 +98,7 @@ struct DictionaryView: View {
                         .onSubmit(addRule)
                         .accessibilityLabel("What it should be")
                     Button("Add", action: addRule)
+                        .buttonStyle(QuietCapsuleButtonStyle())
                         .disabled(model.newWrong.trimmingCharacters(in: .whitespaces).isEmpty
                                   || model.newRight.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
@@ -145,6 +143,7 @@ struct DictionaryView: View {
                         .onSubmit(addProfile)
                         .accessibilityLabel("Cleanup instruction for this app")
                     Button("Add", action: addProfile)
+                        .buttonStyle(QuietCapsuleButtonStyle())
                         .disabled(model.newProfileApp.trimmingCharacters(in: .whitespaces).isEmpty
                                   || model.newProfileInstruction.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
