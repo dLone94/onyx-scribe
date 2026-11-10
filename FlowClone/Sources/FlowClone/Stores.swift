@@ -226,7 +226,7 @@ final class VocabStore: ObservableObject {
     func load() {
         terms = []; rules = []; commentLines = []
         guard let text = try? String(contentsOf: Self.fileURL, encoding: .utf8) else { return }
-        for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
+        for line in text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline) {
             let t = line.trimmingCharacters(in: .whitespaces)
             if t.hasPrefix("#") || t.isEmpty {
                 commentLines.append(String(line))

@@ -41,7 +41,7 @@ public struct CleanupPromptInputs: Equatable, Sendable {
     /// `#` comments and `wrong => right` rules (handled mechanically by
     /// VocabularyCorrector) are dropped.
     public static func manualTerms(fromVocabularyText text: String) -> [String] {
-        text.split(separator: "\n")
+        text.split(whereSeparator: \.isNewline) // CRLF-safe ("\r\n" is one Character)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty && !$0.hasPrefix("#") && !$0.contains("=>") }
     }

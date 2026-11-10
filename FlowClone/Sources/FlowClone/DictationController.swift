@@ -71,7 +71,7 @@ struct DictationSession {
 /// discarded with an honest pill message.
 @MainActor
 final class DictationController {
-    enum State { case loadingModel, idle, recording, processing }
+    enum State { case loadingModel, idle, recording, processing, failed }
 
     private let hotkey = HotkeyManager()
     private let recorder = AudioRecorder()
@@ -188,7 +188,14 @@ final class DictationController {
     /// transcription. Loads the new engine before swapping so dictation keeps
     /// working if the load fails.
     func reloadEngine() {
-        guard case .idle = machine.phase else {
+        // `.failed` (the last load threw) is recoverable: there is no working
+        // engine to protect, so a switch — or a retry of the same engine — is
+        // always allowed. Only a live utterance or an in-flight load rejects.
+        let recovering: Bool
+        switch machine.phase {
+        case .idle: recovering = false
+        case .failed: recovering = true
+        case .loading, .recording, .processing:
             // Revert the already-written setting; the swap didn't happen.
             Settings.asrEngine = engine is WhisperEngine ? "whisper" : "parakeet"
             pill?.showInfo("busy — try the engine switch again")
@@ -206,6 +213,17 @@ final class DictationController {
                 modelReady = true
                 Diag.event("engine switched: \(newEngine.displayName)")
             } catch {
+                if recovering {
+                    // Nothing was loaded before either — stay failed (honestly)
+                    // on the engine the user last chose, so the next retry
+                    // targets it.
+                    engine = newEngine
+                    machine.modelFailed("ASR model failed to load")
+                    Diag.pipelineError("ASR model failed to load", error)
+                    pill?.showError("speech model failed to load")
+                    onStateChange(.failed)
+                    return
+                }
                 // Revert setting; keep the old (already loaded) engine.
                 Settings.asrEngine = engine is WhisperEngine ? "whisper" : "parakeet"
                 modelReady = true
@@ -237,6 +255,7 @@ final class DictationController {
                 machine.modelFailed("ASR model failed to load")
                 Diag.pipelineError("ASR model failed to load", error)
                 pill?.showError("speech model failed to load")
+                onStateChange(.failed)
             }
         }
 
@@ -395,8 +414,14 @@ final class DictationController {
     }
 
     private func runPartial(_ session: DictationSession) {
-        guard partialActive, !partialRunning,
-              machine.phase == .recording(session.id) else { return }
+        guard partialActive, machine.phase == .recording(session.id) else { return }
+        // A decode from the PREVIOUS recording can still be in flight (slow
+        // engine, quick re-dictation). Wait it out instead of returning — a
+        // bare return here ended this session's loop for good.
+        guard !partialRunning else {
+            schedulePartial(session, after: 0.3)
+            return
+        }
         let samples = recorder.snapshot()
         guard samples.count > 12_000 else { // ~0.75s of audio minimum
             schedulePartial(session, after: 0.5)
@@ -406,7 +431,9 @@ final class DictationController {
         partialTask = Task {
             defer {
                 partialRunning = false
-                if partialActive { schedulePartial(session, after: 0.6) }
+                if partialActive, machine.phase == .recording(session.id) {
+                    schedulePartial(session, after: 0.6)
+                }
             }
             let candidates = session.autoLanguage
                 ? (partialLang.map { [$0] } ?? session.autoCandidates)  // sticky after first detect
@@ -441,6 +468,12 @@ final class DictationController {
         case .rejectNotReady:
             Diag.event("gesture ignored — model not ready")
             resetRecognizer()
+            // A failed load (e.g. the first-run model download had no network)
+            // must not be terminal: the next hotkey press retries it.
+            if case .failed = machine.phase {
+                pill?.showInfo("retrying speech model…")
+                reloadEngine()
+            }
             return
         case .rejectAlreadyRecording:
             return
@@ -696,7 +729,19 @@ final class DictationController {
                                      committedEarly: state.earlyChunk != nil,
                                      injected: state.injected) {
         case .canceled(let injected):
-            outcome = .canceled(injected: injected)                        // F5/F6
+            if injected.isEmpty, isCurrentID(sessionID) {
+                // NOT an Esc: the pinned target lost focus before anything
+                // landed. Hand the text to the caller's single validated paste,
+                // which re-checks the target and otherwise saves the words to
+                // the Scratchpad — never a silent drop behind a stuck pill.
+                outcome = .cleaned(streamError == nil
+                    ? StreamInjectionPlan.whole(snapshot: state.lastSnapshot,
+                                                fallbackRaw: raw,
+                                                needsLeadingSpace: false)
+                    : raw)
+            } else {
+                outcome = .canceled(injected: injected)                    // F5/F6
+            }
         case .degradedAfterCommit(let injected):
             outcome = .degradedAfterCommit(
                 injected: injected, injectionMs: state.injectionMs)         // F10/F11
@@ -739,8 +784,14 @@ final class DictationController {
                     outcome = .injected(
                         full: whole, injected: whole,
                         injectionMs: state.injectionMs)
+                } else if isCurrentID(sessionID) {
+                    // Focus lost on the only paste (not an Esc): same hand-off
+                    // to the caller's validated paste / Scratchpad fallback.
+                    outcome = .cleaned(StreamInjectionPlan.whole(
+                        snapshot: state.lastSnapshot, fallbackRaw: raw,
+                        needsLeadingSpace: false))
                 } else {
-                    outcome = .canceled(injected: "")                      // focus lost on the only paste
+                    outcome = .canceled(injected: "")                      // Esc during the only paste
                 }
             }
         }
@@ -926,7 +977,8 @@ final class DictationController {
             if draftIntent == nil, pro, let kind = CommandDetector.detect(raw),
                let previous = lastInjected,
                session.target?.appName == lastInjectedApp {
-                try await handleCommand(kind, raw: raw, previous: previous, session: session)
+                try await handleCommand(kind, raw: raw, previous: previous,
+                                        session: session, languageCode: detectedLang)
                 return
             }
 
@@ -1324,7 +1376,8 @@ final class DictationController {
     // MARK: - Voice-edit commands
 
     private func handleCommand(_ kind: CommandDetector.Kind, raw: String,
-                               previous: String, session: DictationSession) async throws {
+                               previous: String, session: DictationSession,
+                               languageCode: String) async throws {
         // A canceled command must never delete or rewrite anything.
         guard isCurrent(session) else { return }
         // Guard the blind backspace-replace: only edit when the caret is
@@ -1346,9 +1399,16 @@ final class DictationController {
             lastInjected = nil
         case .rewrite:
             let t = Date()
-            let replacement = try await (Self.cleanupEngine(for: session.language) == .apple
+            // Route by the language actually SPOKEN (auto-detect may differ
+            // from the pin) — Apple FM must never get a Bulgarian rewrite.
+            let rewritten = try await (Self.cleanupEngine(for: languageCode) == .apple
                 ? AppleCleanup.rewrite(original: previous, command: raw)
                 : ollama.rewrite(original: previous, command: raw))
+            // The previous injection may carry the mechanical joining space
+            // ("should" + " definitely"); the model's output is trimmed, so
+            // put it back or the rewrite glues onto the word before it.
+            let replacement = rewritten.isEmpty
+                ? "" : String(previous.prefix(while: { $0.isWhitespace })) + rewritten
             // Esc during the model call: the document is untouched — keep it so.
             guard isCurrent(session) else { Diag.event("rewrite discarded (canceled)"); return }
             let ms = Int(Date().timeIntervalSince(t) * 1000)

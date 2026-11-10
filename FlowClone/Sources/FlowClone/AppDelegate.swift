@@ -531,6 +531,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .idle:         setCatIcon()
         case .recording:    setIcon("mic.fill", tint: .systemRed)
         case .processing:   setIcon("ellipsis")
+        case .failed:       setIcon("exclamationmark.triangle")
         }
     }
 

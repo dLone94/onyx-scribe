@@ -201,7 +201,14 @@ final class PillController: @unchecked Sendable {
     // MARK: - Internals (main thread)
 
     private func present() {
-        guard !panel.isVisible else { return }
+        guard !panel.isVisible else {
+            // Still on screen but fading out (dismiss() ran, its delayed
+            // orderOut is pending): bring it back. Returning untouched here let
+            // that orderOut hide the pill for the entire NEXT dictation when it
+            // started within the fade window.
+            if !model.entered { model.entered = true }
+            return
+        }
         model.entered = false
         panel.setFrameOrigin(savedOrigin() ?? defaultOrigin())
         panel.alphaValue = 1 // SwiftUI handles the fade via `entered`

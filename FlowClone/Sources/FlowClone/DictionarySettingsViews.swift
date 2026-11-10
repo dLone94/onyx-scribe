@@ -66,7 +66,10 @@ struct DictionaryView: View {
                                 Text(term).font(.system(size: 13)).foregroundStyle(FlowColor.ink)
                                 Spacer()
                                 Button("Add to Vocabulary") {
-                                    vocab.terms.append(term); vocab.save()
+                                    if !vocab.terms.contains(where: {
+                                        $0.caseInsensitiveCompare(term) == .orderedSame }) {
+                                        vocab.terms.append(term); vocab.save()
+                                    }
                                     learned.dismiss(term) // promoted — stop auto-listing it
                                 }
                                 .buttonStyle(.borderless).font(.system(size: 12))
@@ -178,8 +181,12 @@ struct DictionaryView: View {
     private func addTerm() {
         let t = model.newTerm.trimmingCharacters(in: .whitespaces)
         guard !t.isEmpty else { return }
-        vocab.terms.append(t)
-        vocab.save()
+        // The list is keyed by the term itself — a duplicate would give two
+        // rows one identity (and one trash button deleting both).
+        if !vocab.terms.contains(where: { $0.caseInsensitiveCompare(t) == .orderedSame }) {
+            vocab.terms.append(t)
+            vocab.save()
+        }
         model.newTerm = ""
     }
 

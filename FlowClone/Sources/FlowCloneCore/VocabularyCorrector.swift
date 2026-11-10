@@ -43,7 +43,9 @@ public enum VocabularyCorrector {
 
     /// Parses `wrong => right` lines; `#` comments and plain vocab lines are ignored.
     public static func parseRules(_ rulesText: String) -> [Rule] {
-        rulesText.split(separator: "\n").compactMap { line in
+        // `isNewline`, not "\n": in Swift "\r\n" is ONE Character, so a
+        // CRLF-saved file would never split and every rule would be lost.
+        rulesText.split(whereSeparator: \.isNewline).compactMap { line in
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             guard !trimmed.hasPrefix("#"), trimmed.contains("=>") else { return nil }
             let parts = trimmed.components(separatedBy: "=>")
@@ -136,8 +138,17 @@ public enum TextCleanup {
         }
         let out = kept.joined(separator: " ").trimmingCharacters(in: .whitespaces)
         guard !out.isEmpty else { return text }
-        return capitalize
-            ? out.prefix(1).uppercased() + out.dropFirst()
-            : out.prefix(1).lowercased() + out.dropFirst()
+        if capitalize { return out.prefix(1).uppercased() + out.dropFirst() }
+        return keepsLeadingCapital(out) ? out : out.prefix(1).lowercased() + out.dropFirst()
+    }
+
+    /// Mid-sentence insertions drop the ASR's sentence-initial capital — except
+    /// where the capital belongs to the word itself: the pronoun "I" (and its
+    /// contractions) and acronyms / inner-capital names ("NASA", "iOS", "McKay").
+    private static func keepsLeadingCapital(_ text: String) -> Bool {
+        let word = text.prefix(while: { !$0.isWhitespace })
+            .trimmingCharacters(in: CharacterSet(charactersIn: ",.!?;:"))
+        if word == "I" || word.hasPrefix("I'") || word.hasPrefix("I’") { return true }
+        return word.dropFirst().contains(where: \.isUppercase)
     }
 }
