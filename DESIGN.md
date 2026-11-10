@@ -276,6 +276,25 @@ The tone panel shows the user's own recent dictation, not a canned sentence:
 - **Fallbacks:** engine unreachable → the canned example, labelled as a sample;
   no history or a locked tone → the canned example as before.
 
+### Term chips (Dictionary)
+Single words are tokens, not rows (`TermChip` in a wrapping `FlowLayout`).
+- **Vocabulary chip:** 26px capsule, white 6.5% fill, Crystal-topped hairline,
+  Ink 12pt medium label, a small × to remove.
+- **Suggested chip** (auto-learned, not yet accepted): Onyx Indigo 13% fill and
+  42% stroke, with **+** (keep in Vocabulary) before the ×. The tint is the
+  only signal needed — no sparkle, no badge.
+- Multi-part entries (corrections, app profiles) stay as rows in a row group.
+
+### History rows
+- **Time gutter:** the time in mono 11pt Soft Ink in a fixed 44pt column, so
+  times read down one edge and the text starts on a clean line.
+- **Meta line:** destination app (medium) · pipeline duration. The engine name
+  appears only when stored history mixes engines; a label that is identical on
+  every row is noise.
+- **Day marker:** Fraunces date, hairline, then the day at a glance
+  ("11 dictations · 487 words") in Soft Ink 11pt.
+- **Original transcript** (expanded): mono 11pt beside a hairline bar.
+
 ### Inputs / Fields
 - **Style:** native macOS rounded fields on dark (darkAqua), or token rows
   (white 4.5% fill, 9px radius, 1px white 5% border) for list entries

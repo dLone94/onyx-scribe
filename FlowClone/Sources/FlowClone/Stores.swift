@@ -105,6 +105,13 @@ final class HistoryStore: ObservableObject {
         }
     }
 
+    /// True when stored entries come from more than one ASR engine — the only
+    /// time a per-row engine label carries information.
+    var usesMultipleEngines: Bool {
+        guard let first = entries.first?.engine else { return false }
+        return entries.contains { $0.engine != first }
+    }
+
     /// Markdown export of everything currently in history (newest first).
     func exportMarkdown() -> String {
         var out = "# Onyx Scribe dictation history\n"

@@ -32,22 +32,15 @@ struct DictionaryView: View {
                 if vocab.terms.isEmpty {
                     DictEmptyHint(text: "No terms yet — add the words it keeps misspelling.")
                 } else {
-                    RowGroup {
-                        ForEach(Array(vocab.terms.enumerated()), id: \.element) { index, term in
-                            if index > 0 { RowDivider() }
-                            HubRow {
-                                Text(term).font(.system(size: 13)).foregroundStyle(FlowColor.ink)
-                                Spacer()
-                                Button(role: .destructive) {
-                                    vocab.terms.removeAll { $0 == term }
-                                    vocab.save()
-                                } label: { Image(systemName: "trash") }
-                                    .buttonStyle(.borderless)
-                                    .help("Remove \(term)")
-                                    .accessibilityLabel("Remove \(term)")
-                            }
+                    FlowLayout {
+                        ForEach(vocab.terms, id: \.self) { term in
+                            TermChip(term: term, onRemove: {
+                                vocab.terms.removeAll { $0 == term }
+                                vocab.save()
+                            }, removeLabel: "Remove \(term)")
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
 
@@ -55,30 +48,21 @@ struct DictionaryView: View {
             // actually learned something, so it never nags an empty state.
             if !learned.terms.isEmpty {
                 HubSection(title: "Learned automatically",
-                           caption: "Picked up from your own dictations — on-device, never uploaded. Add the real ones to Vocabulary; remove the noise.") {
-                    RowGroup {
-                        ForEach(Array(learned.terms.enumerated()), id: \.element) { index, term in
-                            if index > 0 { RowDivider() }
-                            HubRow {
-                                Text(term).font(.system(size: 13)).foregroundStyle(FlowColor.ink)
-                                Spacer()
-                                Button("Add to Vocabulary") {
-                                    if !vocab.terms.contains(where: {
-                                        $0.caseInsensitiveCompare(term) == .orderedSame }) {
-                                        vocab.terms.append(term); vocab.save()
-                                    }
-                                    learned.dismiss(term) // promoted — stop auto-listing it
+                           caption: "Picked up from your own dictations — on-device, never uploaded. Press + to keep a word in Vocabulary, × to stop suggesting it.") {
+                    FlowLayout {
+                        ForEach(learned.terms, id: \.self) { term in
+                            TermChip(term: term, suggested: true, onAccept: {
+                                if !vocab.terms.contains(where: {
+                                    $0.caseInsensitiveCompare(term) == .orderedSame }) {
+                                    vocab.terms.append(term); vocab.save()
                                 }
-                                .buttonStyle(.borderless).font(.system(size: 12))
-                                Button(role: .destructive) {
-                                    learned.dismiss(term)
-                                } label: { Image(systemName: "xmark") }
-                                    .buttonStyle(.borderless)
-                                    .help("Not a word I use — don't learn this")
-                                    .accessibilityLabel("Remove learned term \(term)")
-                            }
+                                learned.dismiss(term) // promoted — stop auto-listing it
+                            }, onRemove: {
+                                learned.dismiss(term)
+                            }, removeLabel: "Don't suggest \(term)")
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
 

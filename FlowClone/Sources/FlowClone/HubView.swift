@@ -989,6 +989,12 @@ struct HistoryView: View {
                                         .fill(FlowColor.hairline.opacity(0.5))
                                         .frame(height: 1)
                                         .accessibilityHidden(true)
+                                    // The day at a glance, so the eye can skim days
+                                    // before reading rows.
+                                    Text(daySummary(entries))
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(FlowColor.inkSoft)
+                                        .fixedSize()
                                 }
                                 RowGroup {
                                     ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
@@ -1069,6 +1075,11 @@ struct HistoryView: View {
         }
     }
 
+    private func daySummary(_ entries: [HistoryEntry]) -> String {
+        let words = entries.reduce(0) { $0 + $1.wordCount }
+        return "\(entries.count) dictation\(entries.count == 1 ? "" : "s") · \(words.formatted()) words"
+    }
+
     private var groupedByDay: [(String, [HistoryEntry])] {
         let cal = Calendar.current
         let groups = Dictionary(grouping: filtered) { cal.startOfDay(for: $0.date) }
@@ -1091,6 +1102,13 @@ struct HistoryRow: View {
     private var hovered: Bool { model.hoveredEntry == entry.id }
 
     var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        // The time lives in a gutter, in the machine's mono voice: the eye
+        // runs down one column of times, then reads across.
+        Text(entry.date.formatted(date: .omitted, time: .shortened))
+            .font(.system(size: 11, design: .monospaced))
+            .foregroundStyle(FlowColor.inkSoft)
+            .frame(width: 44, alignment: .leading)
         VStack(alignment: .leading, spacing: 5) {
             Text(entry.text)
                 .font(.system(size: 13))
@@ -1098,22 +1116,31 @@ struct HistoryRow: View {
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if entry.hasDistinctRaw, model.expandedEntry == entry.id, let raw = entry.raw {
-                Text("you said: \(raw)")
-                    .font(.system(size: 11))
-                    .italic()
-                    .foregroundStyle(FlowColor.inkSoft)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .transition(.opacity)
+                HStack(alignment: .top, spacing: 8) {
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(FlowColor.hairline)
+                        .frame(width: 2)
+                    Text(raw)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(FlowColor.inkSoft)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("You said: \(raw)")
+                .transition(.opacity)
             }
             HStack(spacing: 7) {
-                Text(entry.date.formatted(date: .omitted, time: .shortened))
                 if let app = entry.app {
+                    Text(app).fontWeight(.medium)
                     metaDot
-                    Text(app)
                 }
-                metaDot
-                Text(entry.engine)
-                metaDot
+                // The engine is noise while every entry shares one; it earns
+                // its place only when history actually mixes engines.
+                if history.usesMultipleEngines {
+                    Text(entry.engine)
+                    metaDot
+                }
                 Text(String(format: "%.1fs", Double(entry.durationMs) / 1000))
                 if entry.hasDistinctRaw {
                     Button {
@@ -1171,6 +1198,7 @@ struct HistoryRow: View {
             }
             .font(.system(size: 11))
             .foregroundStyle(FlowColor.inkSoft)
+        }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 9)

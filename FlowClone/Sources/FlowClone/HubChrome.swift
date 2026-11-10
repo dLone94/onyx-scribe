@@ -215,3 +215,95 @@ struct KeycapHint: View {
             )
     }
 }
+
+/// Wrapping row layout: children flow left-to-right and wrap onto new lines.
+/// Used for term chips, where a column of one-word rows wastes the page.
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 7
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        arrange(width: proposal.width ?? .infinity, subviews: subviews).size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize,
+                       subviews: Subviews, cache: inout ()) {
+        let placed = arrange(width: bounds.width, subviews: subviews)
+        for (subview, origin) in zip(subviews, placed.origins) {
+            subview.place(at: CGPoint(x: bounds.minX + origin.x, y: bounds.minY + origin.y),
+                          proposal: .unspecified)
+        }
+    }
+
+    private func arrange(width: CGFloat, subviews: Subviews) -> (size: CGSize, origins: [CGPoint]) {
+        var origins: [CGPoint] = []
+        var x: CGFloat = 0, y: CGFloat = 0, lineHeight: CGFloat = 0, widest: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > width {
+                x = 0
+                y += lineHeight + spacing
+                lineHeight = 0
+            }
+            origins.append(CGPoint(x: x, y: y))
+            x += size.width + spacing
+            lineHeight = max(lineHeight, size.height)
+            widest = max(widest, x - spacing)
+        }
+        return (CGSize(width: widest, height: y + lineHeight), origins)
+    }
+}
+
+/// A term as a compact token with its actions inline. `suggested` chips
+/// (auto-learned, not yet accepted) are indigo-tinted and carry an accept
+/// button; accepted vocabulary is a neutral edge-lit capsule.
+struct TermChip: View {
+    let term: String
+    var suggested = false
+    var onAccept: (() -> Void)? = nil
+    let onRemove: () -> Void
+    let removeLabel: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(term)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(FlowColor.ink)
+                .lineLimit(1)
+            if let onAccept {
+                Button(action: onAccept) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(FlowColor.indigoBright)
+                        .frame(width: 16, height: 16)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Add \(term) to Vocabulary")
+                .accessibilityLabel("Add \(term) to Vocabulary")
+            }
+            Button(action: onRemove) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(FlowColor.inkSoft)
+                    .frame(width: 16, height: 16)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(removeLabel)
+            .accessibilityLabel(removeLabel)
+        }
+        .padding(.leading, 11)
+        .padding(.trailing, 5)
+        .frame(height: 26)
+        .background(Capsule().fill(suggested ? FlowColor.indigo.opacity(0.13)
+                                             : Color.white.opacity(0.065)))
+        .overlay(Capsule().strokeBorder(
+            suggested
+                ? AnyShapeStyle(FlowColor.indigo.opacity(0.42))
+                : AnyShapeStyle(LinearGradient(
+                    colors: [FlowColor.crystal.opacity(0.30), Color.white.opacity(0.05)],
+                    startPoint: .top, endPoint: .bottom)),
+            lineWidth: 1))
+        .accessibilityElement(children: .contain)
+    }
+}
