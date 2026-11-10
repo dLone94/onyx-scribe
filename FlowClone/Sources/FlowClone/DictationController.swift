@@ -279,8 +279,11 @@ final class DictationController {
 
         // Captures the pill directly (thread-safe by design): the tap thread
         // must not touch main-actor controller state.
-        let pill = self.pill
-        recorder.onLevel = { level in pill?.updateLevel(level) }
+        // Named apart from the `pill` property: the load Task above reads
+        // `pill` (the property), and Swift 6.3 rejects a same-named local
+        // declared after a closure that mentions it.
+        let levelPill = self.pill
+        recorder.onLevel = { level in levelPill?.updateLevel(level) }
         hotkey.onEscape = { [weak self] in self?.cancelDictation() }
 
         // Page the Apple Intelligence model in so first cleanup isn't cold.
