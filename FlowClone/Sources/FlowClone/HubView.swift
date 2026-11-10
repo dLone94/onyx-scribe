@@ -198,6 +198,8 @@ struct HomeView: View {
     @ObservedObject var model: HubModel
     @ObservedObject var history: HistoryStore
     @ObservedObject var stats: StatsStore
+    /// Once-per-launch reveal: figures count up, the rhythm bars rise.
+    @ObservedObject private var reveal = InsightsReveal.shared
 
     var body: some View {
         ScrollView {
@@ -247,7 +249,16 @@ struct HomeView: View {
             .frame(maxWidth: HubMetrics.contentMaxWidth, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .onAppear { OllamaHealth.shared.checkIfStale(olderThan: 10) }
+        .onAppear {
+            OllamaHealth.shared.checkIfStale(olderThan: 10)
+            reveal.play()
+        }
+    }
+
+    /// A figure that counts up on the launch reveal.
+    private func counting(_ value: Int, _ format: @escaping (Int) -> String = { "\($0)" }) -> some View {
+        CountingText(value: reveal.revealed ? Double(value) : 0, format: format)
+            .animation(.easeOut(duration: 0.9), value: reveal.revealed)
     }
 
     private var greeting: String {
@@ -289,13 +300,17 @@ struct HomeView: View {
     /// today's words · time saved · streak · speaking speed — quiet, no boxes.
     private var figureStrip: some View {
         HStack(alignment: .center, spacing: 20) {
-            figure("\(todayWords)", "words today")
+            figure("\(todayWords)", "words today") { counting(todayWords) }
             figureDivider
             figure(timeSavedString, "saved vs typing")
             figureDivider
-            stats.streakDays > 0
-                ? figure("\(stats.streakDays)-day", "streak")
-                : figure("today", "start your streak")
+            if stats.streakDays > 0 {
+                figure("\(stats.streakDays)-day", "streak") {
+                    counting(stats.streakDays) { "\($0)-day" }
+                }
+            } else {
+                figure("today", "start your streak")
+            }
             figureDivider
             figure(speakingWPMString, "speaking speed")
             Spacer(minLength: 0)
@@ -303,11 +318,18 @@ struct HomeView: View {
     }
 
     private func figure(_ value: String, _ label: String) -> some View {
+        figure(value, label) { Text(value) }
+    }
+
+    /// `value` is the settled figure (what VoiceOver reads); `display` may be
+    /// an animated rendering of it.
+    private func figure<Display: View>(_ value: String, _ label: String,
+                                       @ViewBuilder display: () -> Display) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(value).font(.system(size: 24, weight: .semibold)).foregroundStyle(FlowColor.ink)
+            display().font(.system(size: 24, weight: .semibold)).foregroundStyle(FlowColor.ink)
             Text(label).font(.system(size: 11)).foregroundStyle(FlowColor.inkSoft)
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(value) \(label)")
     }
 

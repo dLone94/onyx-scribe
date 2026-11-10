@@ -102,6 +102,19 @@ final class DictationController {
         ) == .apple ? .apple : .ollama
     }
 
+    /// Where to retry when `failed` threw before anything was pasted — the
+    /// pure, unit-tested `CleanupFallback` rule, in this file's engine type.
+    nonisolated static func fallbackEngine(after failed: CleanupEngineKind,
+                                           languageCode: String) -> CleanupEngineKind? {
+        switch CleanupFallback.engine(after: failed == .apple ? .apple : .ollama,
+                                      appleAvailable: AppleCleanup.isAvailable,
+                                      languageCode: languageCode) {
+        case .apple: return .apple
+        case .ollama: return .ollama
+        case nil: return nil
+        }
+    }
+
     /// Whether the language label fed to the router can be trusted, derived
     /// from the ASR engine the live pipeline ACTUALLY uses. Pinned language →
     /// always reliable. Auto-language → reliable only on Parakeet, whose
@@ -974,9 +987,13 @@ final class DictationController {
 
             // Voice-editing command targeting the previous injection?
             // Only when the caret is plausibly still there (same app).
-            if draftIntent == nil, pro, let kind = CommandDetector.detect(raw),
-               let previous = lastInjected,
-               session.target?.appName == lastInjectedApp {
+            let command = CommandDetector.detect(raw)
+            if VoiceEdit.shouldHandle(
+                hasDraftIntent: draftIntent != nil, pro: pro,
+                commandDetected: command != nil,
+                hasPreviousInjection: lastInjected != nil,
+                sameApp: session.target?.appName == lastInjectedApp),
+               let kind = command, let previous = lastInjected {
                 try await handleCommand(kind, raw: raw, previous: previous,
                                         session: session, languageCode: detectedLang)
                 return
@@ -990,7 +1007,19 @@ final class DictationController {
             // no instruction and stay on the fast Apple path.
             let restyleTone = !Tone.current.instruction.isEmpty
             let cleanupStartedAt = performanceClock.now
-            if let intent = draftIntent {
+            let path = CleanupPath.decide(
+                hasDraftIntent: draftIntent != nil,
+                pro: pro,
+                translateTo: Settings.translateTo,
+                detectedLanguage: detectedLang,
+                toneIsVerbatim: Tone.current.isVerbatim,
+                cleanupEnabled: Settings.cleanupEnabled,
+                skipForLength: CleanupPassPolicy.shouldSkipForLength(
+                    wordCount: wordCount, languageCode: detectedLang),
+                streamingPreview: Settings.streamingPreview)
+            switch path {
+            case .draft:
+                let intent = draftIntent ?? raw
                 // Read what's on screen (locally, via Accessibility) and write
                 // the finished message. Falls back to pasting the intent when
                 // there's nothing readable or the engine declines — never a
@@ -1020,7 +1049,7 @@ final class DictationController {
                     Diag.event("nothing readable on screen to draft from — pasting the intent")
                     final = intent
                 }
-            } else if pro, let target = Settings.translateTo, target != detectedLang {
+            case .translate(let target):
                 // Speak one language, type another — translate + clean in one
                 // pass, fully offline. Bulgarian anywhere routes to Ollama (Apple
                 // FM can't be trusted with it); everything else follows auto.
@@ -1043,12 +1072,11 @@ final class DictationController {
                     final = raw
                     cleanupDegraded = true
                 }
-            } else if Tone.current.isVerbatim {
+            case .verbatim:
                 // Verbatim: exactly as transcribed — no LLM, no filler strip.
                 // (Dictionary corrections above still apply; they're user rules.)
-            } else if !pro || !Settings.cleanupEnabled
-                        || CleanupPassPolicy.shouldSkipForLength(
-                            wordCount: wordCount, languageCode: detectedLang) {
+                break
+            case .mechanical:
                 // Free tier, cleanup-off, or short utterances skip the LLM pass
                 // entirely — Parakeet already punctuates; just strip stray
                 // fillers. Context still applies mechanically (no mid-sentence
@@ -1061,7 +1089,7 @@ final class DictationController {
                     wordCount: wordCount, languageCode: detectedLang), Settings.cleanupEnabled {
                     Diag.event("short utterance — skipped cleanup")
                 }
-            } else if Settings.streamingPreview {
+            case .streaming:
                 // Both local cleanup engines now stream into the Pill. Early
                 // in-document landing remains behind the explicit advanced
                 // opt-in and reuses the same bounded two-paste safety contract.
@@ -1101,15 +1129,9 @@ final class DictationController {
                     // non-streaming path. Never retry after an early commit.
                     guard isCurrent(session) else { return }
                     do {
-                        let fallback: CleanupEngineKind?
-                        switch streamEngine {
-                        case .apple:
-                            fallback = .ollama
-                        case .ollama where AppleCleanup.isAvailable && detectedLang == "en":
+                        let fallback = Self.fallbackEngine(after: streamEngine, languageCode: detectedLang)
+                        if streamEngine == .ollama, fallback != nil {
                             OllamaHealth.shared.noteFailure()
-                            fallback = .apple
-                        default:
-                            fallback = nil
                         }
                         guard let fallback else { throw err }
                         Diag.pipelineError(
@@ -1137,7 +1159,7 @@ final class DictationController {
                         OllamaHealth.shared.noteFailure()
                     }
                 }
-            } else {
+            case .oneShot:
                 do {
                     let engineKind = Self.cleanupEngine(for: detectedLang, restyleTone: restyleTone)
                     // Log the engine that ACTUALLY produced the text and its
@@ -1159,15 +1181,15 @@ final class DictationController {
                         // Symmetric failover before degrading to raw:
                         // FM hiccup/guardrail → Ollama; Ollama down → FM
                         // (English only — FM can't be trusted with BG).
-                        switch engineKind {
-                        case .apple:
+                        switch Self.fallbackEngine(after: engineKind, languageCode: detectedLang) {
+                        case .ollama:
                             Diag.pipelineError("Apple cleanup failed — trying Ollama", error)
                             actualEngine = .ollama
                             t1 = Date()
                             cleaned = try await ollama.cleanup(raw, app: session.target?.appName,
                                                                context: session.target?.insertionContext,
                                                                languageCode: detectedLang)
-                        case .ollama where AppleCleanup.isAvailable && detectedLang == "en":
+                        case .apple:
                             Diag.pipelineError("Ollama cleanup failed — trying Apple", error)
                             OllamaHealth.shared.noteFailure()
                             actualEngine = .apple
@@ -1175,7 +1197,7 @@ final class DictationController {
                             cleaned = try await AppleCleanup.cleanup(raw, app: session.target?.appName,
                                                                      context: session.target?.insertionContext,
                                                                      languageCode: detectedLang)
-                        default:
+                        case nil:
                             throw error
                         }
                     }
@@ -1392,7 +1414,8 @@ final class DictationController {
         switch kind {
         case .delete:
             Diag.event("voice command: delete last injection (\(previous.count) chars)")
-            guard TextInjector.replaceLast(charCount: previous.count, with: "", target: target) else {
+            guard TextInjector.replaceLast(charCount: previous.count, with: "",
+                                           target: target, previous: previous) else {
                 pill?.showError("app changed — no change")
                 return
             }
@@ -1407,19 +1430,19 @@ final class DictationController {
             // The previous injection may carry the mechanical joining space
             // ("should" + " definitely"); the model's output is trimmed, so
             // put it back or the rewrite glues onto the word before it.
-            let replacement = rewritten.isEmpty
-                ? "" : String(previous.prefix(while: { $0.isWhitespace })) + rewritten
+            let replacement = VoiceEdit.replacement(previous: previous, rewritten: rewritten)
             // Esc during the model call: the document is untouched — keep it so.
             guard isCurrent(session) else { Diag.event("rewrite discarded (canceled)"); return }
             let ms = Int(Date().timeIntervalSince(t) * 1000)
             // Never delete unless we have a real replacement in hand.
-            guard !replacement.isEmpty, replacement != previous else {
+            guard let replacement else {
                 Diag.event("rewrite produced no change")
                 pill?.hide()
                 return
             }
             Diag.content("rewrite applied (\(ms)ms, \(replacement.count) chars)", content: replacement)
-            guard TextInjector.replaceLast(charCount: previous.count, with: replacement, target: target) else {
+            guard TextInjector.replaceLast(charCount: previous.count, with: replacement,
+                                           target: target, previous: previous) else {
                 pill?.showError("app changed — no change")
                 return
             }

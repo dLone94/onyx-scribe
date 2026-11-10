@@ -929,6 +929,7 @@ struct OnyxCatMark: View {
     var animated: Bool = true
     @ObservedObject private var motion = MotionPreferences.shared
     @ObservedObject private var gate = AmbientGate.shared
+    @ObservedObject private var pulse = CatPulse.shared
 
     var body: some View {
         Group {
@@ -937,7 +938,8 @@ struct OnyxCatMark: View {
                 // breath/glow move too slowly to show stepping.
                 TimelineView(.animation(minimumInterval: 1.0 / 12)) { ctx in
                     let t = ctx.date.timeIntervalSinceReferenceDate
-                    cat(blink: blinkFactor(t), breath: 0.5 + 0.5 * sin(t * 0.9))
+                    cat(blink: min(blinkFactor(t), landedBlink(t)),
+                        breath: 0.5 + 0.5 * sin(t * 0.9))
                 }
             } else {
                 cat(blink: 1, breath: 0.6)
@@ -953,11 +955,33 @@ struct OnyxCatMark: View {
         return max(0.08, abs(cos(.pi * phase / 0.055)))
     }
 
+    /// A quick double blink right after a dictation lands — the cat noticed.
+    private func landedBlink(_ t: Double) -> Double {
+        let since = t - pulse.landedAt
+        guard since >= 0, since < 0.62 else { return 1 }
+        let phase = since < 0.26 ? since / 0.26 : (since > 0.36 ? (since - 0.36) / 0.26 : -1)
+        guard phase >= 0 else { return 1 }
+        return max(0.08, abs(cos(.pi * phase)))
+    }
+
     private func cat(blink: Double, breath: Double) -> some View {
         OnyxCatGlyph(glyph: size, blink: blink)
             .compositingGroup()
             .shadow(color: FlowColor.indigo.opacity(0.40 + 0.25 * breath),
                     radius: size * (0.10 + 0.05 * breath))
+    }
+}
+
+/// The moment a dictation last landed, so the visible mascot can react.
+/// One published timestamp: a landing costs a single re-render, and the blink
+/// itself rides the mascot's existing (visibility-gated) timeline.
+final class CatPulse: ObservableObject {
+    static let shared = CatPulse()
+    @Published private(set) var landedAt: TimeInterval = 0
+    private init() {}
+
+    func landed() {
+        landedAt = Date().timeIntervalSinceReferenceDate
     }
 }
 

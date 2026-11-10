@@ -315,6 +315,10 @@ final class ScratchpadStore: ObservableObject {
 
 final class ProfilesStore: ObservableObject {
     @Published var profiles: [(app: String, instruction: String)] = []
+    /// Underscore-prefixed keys are the file's own inactive placeholders
+    /// ("_comment", "_Slack"…): never listed as profiles, but carried through
+    /// every save so editing in the Hub can't strip the template from the file.
+    private var placeholders: [String: String] = [:]
 
     private static var fileURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -325,9 +329,12 @@ final class ProfilesStore: ObservableObject {
 
     func load() {
         profiles = []
+        placeholders = [:]
         guard let data = try? Data(contentsOf: Self.fileURL),
               let dict = try? JSONSerialization.jsonObject(with: data) as? [String: String] else { return }
-        profiles = dict.sorted { $0.key < $1.key }.map { ($0.key, $0.value) }
+        placeholders = dict.filter { $0.key.hasPrefix("_") }
+        profiles = dict.filter { !$0.key.hasPrefix("_") }
+            .sorted { $0.key < $1.key }.map { ($0.key, $0.value) }
     }
 
     /// Adds or updates by app name, case-insensitively (pure logic + tests in
@@ -346,6 +353,7 @@ final class ProfilesStore: ObservableObject {
         // names must never crash the save (uniqueKeysWithValues trapped here).
         let dict = AppProfiles.dictionary(
             profiles.map { AppProfiles.Entry(app: $0.app, instruction: $0.instruction) })
+            .merging(placeholders) { real, _ in real }
         if let data = try? JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted, .sortedKeys]) {
             try? data.write(to: Self.fileURL, options: .atomic)
         }

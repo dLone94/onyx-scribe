@@ -276,6 +276,15 @@ The tone panel shows the user's own recent dictation, not a canned sentence:
 - **Fallbacks:** engine unreachable → the canned example, labelled as a sample;
   no history or a locked tone → the canned example as before.
 
+### Motion moments
+Two, both state-carrying, both silent under Reduce Motion:
+- **Insights reveal** (`InsightsReveal`): once per app launch the headline
+  figures count up (0.9s ease-out) and the rhythm columns rise left to right
+  (spring, 12ms stagger). Every later visit settles instantly — the page never
+  performs for a daily user.
+- **The cat notices** (`CatPulse`): when a dictation lands, the visible mascot
+  gives a quick double blink on its existing timeline. No new animation loop.
+
 ### Term chips (Dictionary)
 Single words are tokens, not rows (`TermChip` in a wrapping `FlowLayout`).
 - **Vocabulary chip:** 26px capsule, white 6.5% fill, Crystal-topped hairline,
@@ -322,7 +331,9 @@ glow+depth shadow. Spring entrance (rise + scale + fade). States: recording (red
 pulsing dot + 14-bar live waveform, max 17px), processing (shimmer sweep), success
 (green check + a one-shot edge-light glint sweeping the capsule, 0.7s), degraded
 (amber check + message), error (amber triangle + message), info (indigo paintbrush
-+ message). At idle it renders nothing at all.
++ message). At idle it renders nothing at all. Every state
+change is also spoken to VoiceOver ("Recording", "Polishing", "Text inserted",
+or the error/info message) — the pill never takes focus, so it must announce.
 
 ### The Onyx Cat (brandmark)
 A faceted black cat head — gem-cut silhouette, lit inner ears, glowing

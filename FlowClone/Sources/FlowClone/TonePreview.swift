@@ -150,6 +150,7 @@ struct TonePreviewPair: View {
 /// marks only the peak (the Amber-Is-Graphic rule).
 struct RhythmPanel: View {
     @ObservedObject var history: HistoryStore
+    @ObservedObject private var reveal = InsightsReveal.shared
 
     private static let span = 30
     private static let chartHeight: CGFloat = 104
@@ -186,6 +187,10 @@ struct RhythmPanel: View {
                     HStack(alignment: .bottom, spacing: 3) {
                         ForEach(Array(data.enumerated()), id: \.offset) { index, day in
                             bar(day, peak: peak, markPeak: markPeak, isToday: index == data.count - 1)
+                                // Launch reveal: columns rise left to right.
+                                .scaleEffect(x: 1, y: reveal.revealed ? 1 : 0.02, anchor: .bottom)
+                                .animation(.spring(response: 0.5, dampingFraction: 0.82)
+                                    .delay(Double(index) * 0.012), value: reveal.revealed)
                         }
                     }
                     if total == 0 {

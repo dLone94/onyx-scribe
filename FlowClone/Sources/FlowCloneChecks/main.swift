@@ -937,5 +937,66 @@ let profilePrompt = CleanupPromptBuilder.situational(
 check(profilePrompt.contains("App-specific instruction: Keep it short."),
       "app profiles match destination names case-insensitively")
 
+// MARK: - Pipeline plan (the decisions inside DictationController.runPipeline)
+
+func path(draft: Bool = false, pro: Bool = true, translateTo: String? = nil,
+          lang: String = "en", verbatim: Bool = false, cleanup: Bool = true,
+          short: Bool = false, streaming: Bool = true) -> CleanupPath {
+    CleanupPath.decide(hasDraftIntent: draft, pro: pro, translateTo: translateTo,
+                       detectedLanguage: lang, toneIsVerbatim: verbatim,
+                       cleanupEnabled: cleanup, skipForLength: short,
+                       streamingPreview: streaming)
+}
+check(path() == .streaming, "path: paid + cleanup + preview streams")
+check(path(streaming: false) == .oneShot, "path: preview off runs one-shot cleanup")
+check(path(draft: true, translateTo: "bg", verbatim: true, short: true) == .draft,
+      "path: a draft intent outranks translate, verbatim and length")
+check(path(translateTo: "bg") == .translate(to: "bg"), "path: translate when target differs")
+check(path(translateTo: "en") == .streaming, "path: no translate when already in the target language")
+check(path(pro: false, translateTo: "bg") == .mechanical, "path: free tier never translates")
+check(path(translateTo: "bg", verbatim: true) == .translate(to: "bg"),
+      "path: translate mode outranks the Verbatim tone")
+check(path(verbatim: true) == .verbatim, "path: Verbatim tone is untouched")
+check(path(pro: false, verbatim: true) == .verbatim, "path: Verbatim holds on the free tier")
+check(path(verbatim: true, short: true) == .verbatim, "path: Verbatim beats the short-utterance strip")
+check(path(pro: false) == .mechanical, "path: free tier gets the mechanical strip")
+check(path(cleanup: false) == .mechanical, "path: cleanup off gets the mechanical strip")
+check(path(short: true) == .mechanical, "path: short utterances skip the model")
+
+check(CleanupFallback.engine(after: .apple, appleAvailable: true, languageCode: "en") == .ollama,
+      "fallback: Apple failure retries on Ollama")
+check(CleanupFallback.engine(after: .apple, appleAvailable: true, languageCode: "bg") == .ollama,
+      "fallback: Apple failure retries on Ollama in any language")
+check(CleanupFallback.engine(after: .ollama, appleAvailable: true, languageCode: "en") == .apple,
+      "fallback: Ollama failure retries on Apple for English")
+check(CleanupFallback.engine(after: .ollama, appleAvailable: true, languageCode: "bg") == nil,
+      "fallback: Apple is never the fallback for Bulgarian")
+check(CleanupFallback.engine(after: .ollama, appleAvailable: false, languageCode: "en") == nil,
+      "fallback: no Apple fallback when Apple Intelligence is unavailable")
+
+check(VoiceEdit.replacement(previous: " definitely do it", rewritten: "certainly do it")
+      == " certainly do it", "voice edit: the joining space survives a rewrite")
+check(VoiceEdit.replacement(previous: "Hello there.", rewritten: "  Good day.\n") == "Good day.",
+      "voice edit: the rewrite is trimmed")
+check(VoiceEdit.replacement(previous: "Hello.", rewritten: "   ") == nil,
+      "voice edit: an empty rewrite changes nothing")
+check(VoiceEdit.replacement(previous: " same text", rewritten: "same text") == nil,
+      "voice edit: an identical rewrite changes nothing")
+check(VoiceEdit.shouldHandle(hasDraftIntent: false, pro: true, commandDetected: true,
+                             hasPreviousInjection: true, sameApp: true),
+      "voice edit: handled when every condition holds")
+check(!VoiceEdit.shouldHandle(hasDraftIntent: true, pro: true, commandDetected: true,
+                              hasPreviousInjection: true, sameApp: true),
+      "voice edit: a draft intent claims the utterance first")
+check(!VoiceEdit.shouldHandle(hasDraftIntent: false, pro: false, commandDetected: true,
+                              hasPreviousInjection: true, sameApp: true),
+      "voice edit: free tier dictates the words instead")
+check(!VoiceEdit.shouldHandle(hasDraftIntent: false, pro: true, commandDetected: true,
+                              hasPreviousInjection: true, sameApp: false),
+      "voice edit: never edits text injected into a different app")
+check(!VoiceEdit.shouldHandle(hasDraftIntent: false, pro: true, commandDetected: true,
+                              hasPreviousInjection: false, sameApp: true),
+      "voice edit: nothing to edit before the first injection")
+
 print("\n\(score.passed) passed, \(score.failed) failed")
 exit(score.failed == 0 ? 0 : 1)

@@ -1,0 +1,47 @@
+# Builds the app and runs the FlowCloneCore check suite on every push and PR.
+# FlowCloneCore is shared with Onyx Scribe Mobile, so a red run here means the
+# iPhone app's dependency is broken too.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-check:
+    # The app links FoundationModels (macOS 26 SDK), so it needs a macOS 26 image.
+    runs-on: macos-26
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: FlowClone
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: swift --version
+
+      - name: Cache SwiftPM build
+        uses: actions/cache@v4
+        with:
+          path: FlowClone/.build
+          key: spm-${{ runner.os }}-${{ hashFiles('FlowClone/Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      # The pure-logic suite first: fast, and it is the contract the iOS app
+      # depends on. Exits non-zero on any failed check.
+      - name: Core checks
+        run: swift run FlowCloneChecks
+
+      - name: Build app
+        run: swift build
+
+      - name: Release-safety check
+        run: |
+          swift build -c release
+          ./scripts/check-release-safety.sh .build/release/FlowClone

@@ -143,6 +143,50 @@ enum SelectionEditor {
         return ns.substring(with: NSRange(location: caret - prevLen, length: prevLen)) == previous
     }
 
+    /// Replaces the text immediately before the caret — which must be exactly
+    /// `previous` — with `replacement` (empty = delete), entirely through
+    /// Accessibility: select that span, confirm the selection reads back as
+    /// `previous`, then overwrite it. No simulated backspaces, no clipboard.
+    ///
+    /// Returns false WITHOUT changing the document when anything can't be
+    /// verified (non-native text control, attributes not settable, caret or
+    /// text moved). The caller then falls back to the legacy keystroke path.
+    @MainActor
+    static func replaceBeforeCaret(_ previous: String, with replacement: String) -> Bool {
+        guard !previous.isEmpty, let element = focusedElement(),
+              subrole(of: element) != ContextReader.secureSubrole else { return false }
+        var roleRef: CFTypeRef?
+        AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleRef)
+        guard let role = roleRef as? String, role == "AXTextArea" || role == "AXTextField",
+              isSettable(element, kAXSelectedTextRangeAttribute),
+              isSettable(element, kAXSelectedTextAttribute),
+              caretIsAtEndOf(previous) == true,
+              let caret = selectedRange(of: element) else { return false }
+
+        let prevLen = (previous as NSString).length
+        var span = CFRange(location: caret.location - prevLen, length: prevLen)
+        var restore = caret
+        guard let axSpan = AXValueCreate(.cfRange, &span),
+              let axRestore = AXValueCreate(.cfRange, &restore),
+              AXUIElementSetAttributeValue(
+                element, kAXSelectedTextRangeAttribute as CFString, axSpan) == .success
+        else { return false }
+
+        // Read back: the selection must now be exactly the text we mean to replace.
+        var selRef: CFTypeRef?
+        AXUIElementCopyAttributeValue(element, kAXSelectedTextAttribute as CFString, &selRef)
+        guard (selRef as? String) == previous,
+              AXUIElementSetAttributeValue(
+                element, kAXSelectedTextAttribute as CFString, replacement as CFString) == .success
+        else {
+            // Put the caret back where it was; the document is untouched.
+            AXUIElementSetAttributeValue(
+                element, kAXSelectedTextRangeAttribute as CFString, axRestore)
+            return false
+        }
+        return true
+    }
+
     // MARK: - AX helpers
 
     private static func focusedElement() -> AXUIElement? {

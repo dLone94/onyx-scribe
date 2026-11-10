@@ -88,12 +88,19 @@ enum TextInjector {
     /// target changed.
     @discardableResult
     static func replaceLast(charCount: Int, with replacement: String,
-                            target: WriteTarget) -> Bool {
+                            target: WriteTarget, previous: String? = nil) -> Bool {
         let decision = TargetGuard.decide(
             capturedPID: target.pid,
             frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier,
             secureFieldFocused: ContextReader.targetInfo().secure)
         guard decision == .proceed else { return false }
+
+        // Preferred: a verified in-place AX replacement (native text controls).
+        // Only when that can't be verified do we fall back to backspaces.
+        if let previous, previous.count == charCount,
+           SelectionEditor.replaceBeforeCaret(previous, with: replacement) {
+            return true
+        }
 
         let source = CGEventSource(stateID: .combinedSessionState)
         let backspace: CGKeyCode = 51

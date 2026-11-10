@@ -55,6 +55,7 @@ final class PillController: @unchecked Sendable {
             self.model.autoLanguage = Settings.autoLanguage
             self.startElapsedTimer()
             self.present()
+            self.announce("Recording")
         }
     }
 
@@ -97,6 +98,7 @@ final class PillController: @unchecked Sendable {
             // the streaming preview delivers cleaned text.
             self.model.liveText = ""
             flowAnimate(.easeOut(duration: 0.25)) { self.model.state = .processing }
+            self.announce("Polishing")
         }
     }
 
@@ -107,6 +109,8 @@ final class PillController: @unchecked Sendable {
                 self.model.state = .success
             }
             self.hideAfter(0.7)
+            self.announce("Text inserted")
+            CatPulse.shared.landed()
         }
     }
 
@@ -116,6 +120,8 @@ final class PillController: @unchecked Sendable {
         onMain {
             flowAnimate(.easeOut(duration: 0.25)) { self.model.state = .degraded(message) }
             self.hideAfter(1.8)
+            self.announce("Text inserted — \(message)")
+            CatPulse.shared.landed()
         }
     }
 
@@ -127,6 +133,7 @@ final class PillController: @unchecked Sendable {
             flowAnimate(.easeOut(duration: 0.25)) { self.model.state = .info(message) }
             self.present()
             self.hideAfter(1.6)
+            self.announce(message)
         }
     }
 
@@ -136,6 +143,7 @@ final class PillController: @unchecked Sendable {
             flowAnimate(.easeOut(duration: 0.25)) { self.model.state = .error(message) }
             self.present()
             self.hideAfter(2.5)
+            self.announce(message)
         }
     }
 
@@ -234,6 +242,18 @@ final class PillController: @unchecked Sendable {
                 self.model.state = .idle // stop any TimelineView in the hidden panel
             }
         }
+    }
+
+    /// Speak a pill state change to VoiceOver. The pill is a non-activating
+    /// panel that never takes focus, so its states would otherwise be silent to
+    /// a VoiceOver user. No-op unless VoiceOver is running.
+    private func announce(_ message: String) {
+        guard NSWorkspace.shared.isVoiceOverEnabled else { return }
+        NSAccessibility.post(
+            element: NSApp as Any,
+            notification: .announcementRequested,
+            userInfo: [.announcement: message,
+                       .priority: NSAccessibilityPriorityLevel.high.rawValue])
     }
 
     private func hideAfter(_ delay: TimeInterval) {

@@ -122,6 +122,22 @@ struct HubRow<Content: View>: View {
     }
 }
 
+/// A whole number that counts up to its value (interpolated by SwiftUI's
+/// animation system — no timers). Settles instantly when nothing animates it.
+struct CountingText: View, Animatable {
+    var value: Double
+    var format: (Int) -> String = { "\($0)" }
+
+    var animatableData: Double {
+        get { value }
+        set { value = newValue }
+    }
+
+    var body: some View {
+        Text(format(Int(value.rounded())))
+    }
+}
+
 /// Status dot + label. State is carried by the WORD, the color only reinforces
 /// it (never color alone).
 struct StatusLine: View {
